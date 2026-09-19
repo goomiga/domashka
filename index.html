@@ -73,6 +73,11 @@
         .btn-mini.danger { color: #ef4444; }
         .btn-quick { width: 100%; text-align: left; background: #f1f5f9; border: none; padding: 12px; border-radius: 10px; font-size: 13px; font-weight: 600; color: var(--text-main); cursor: pointer; margin-bottom: 6px; }
         .field-label { font-size: 11px; color: var(--text-sub); margin: 6px 0 3px; font-weight: 600; }
+        #importPreview { max-height: 45vh; overflow-y: auto; margin-bottom: 10px; }
+        .prev-row { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
+        .prev-row input { margin-top: 2px; width: 18px; height: 18px; flex-shrink: 0; }
+        .prev-head { font-size: 11px; color: var(--text-sub); font-weight: 600; }
+        .prev-text { font-size: 13px; color: var(--text-main); word-break: break-word; }
         .subtask-item:last-child { border-bottom: none; }
         .checkbox { width: 22px; height: 22px; border-radius: 6px; border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; background: #fff; }
         .checkbox.checked { background-color: #22c55e; border-color: #22c55e; color: white; }
@@ -155,19 +160,29 @@
 <!-- Модальное окно: Импорт ПЭШ -->
 <div class="modal" id="importModal" onclick="if(event.target===this) closeImportModal()">
     <div class="modal-body">
-        <div class="modal-title">Импорт из «Петербургского образования»</div>
-        <p style="font-size: 11px; color: var(--text-sub); margin-bottom: 8px;">Выберите предмет и вставьте задания из дневника (одно задание на строке):</p>
-        <div class="field-label">Предмет</div>
-        <select id="importSubject" class="field"></select>
-        <textarea class="pesh-input" id="peshRawText" placeholder="№ 345, 347 письменно&#10;прочитать стр. 40-50&#10;(или «Алгебра: № 345», если предмет выбран «по тексту»)"></textarea>
-        <div class="field-label">На какую дату</div>
-        <select id="importDay" class="field" onchange="onImportDayChange()">
-            <option value="auto">На ближайший урок этого предмета</option>
-            <option value="date">На выбранную дату</option>
-        </select>
-        <input type="date" id="importDate" class="field" style="display:none">
-        <button class="btn-primary" onclick="parseAndImport()">Разобрать и добавить</button>
-        <button class="btn-secondary" onclick="closeImportModal()">Отмена</button>
+        <div id="importStep1">
+            <div class="modal-title">Импорт из «Петербургского образования»</div>
+            <p style="font-size: 11px; color: var(--text-sub); margin-bottom: 8px;">Откройте в дневнике «Домашнее задание», выделите весь текст экрана, скопируйте и вставьте сюда. Один день дневника — одна вставка.</p>
+            <textarea class="pesh-input" id="peshRawText" oninput="updateImportHint()" placeholder="Вставьте скопированный текст"></textarea>
+            <div id="importHint" style="font-size:11px; color:var(--primary-color); font-weight:600; min-height:14px; margin-bottom:8px;"></div>
+            <div class="field-label">На какую дату</div>
+            <select id="importDay" class="field" onchange="onImportDayChange()">
+                <option value="text">Как в дневнике (дата вкладки)</option>
+                <option value="auto">На ближайший урок предмета</option>
+                <option value="date">На выбранную дату</option>
+            </select>
+            <input type="date" id="importDate" class="field" style="display:none">
+            <div class="field-label">Предмет — только для строк без названия («стр. 5, упр. 3»)</div>
+            <select id="importSubject" class="field" onchange="updateImportHint()"></select>
+            <button class="btn-primary" onclick="parseAndImport()">Разобрать</button>
+            <button class="btn-secondary" onclick="closeImportModal()">Отмена</button>
+        </div>
+        <div id="importStep2" style="display:none">
+            <div class="modal-title">Проверьте, что найдено</div>
+            <div id="importPreview"></div>
+            <button class="btn-primary" id="importCommitBtn" onclick="commitImport()">Добавить</button>
+            <button class="btn-secondary" onclick="importBack()">← Назад</button>
+        </div>
     </div>
 </div>
 
@@ -869,11 +884,22 @@
     }
 
     // ================== Импорт из ПЭШ ==================
+    const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    const WD_ABBR = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+    let importItems = [];   // распознанные задания: { subject, canon, text, type, place, selected }
+
     function openImportModal() {
         document.getElementById('importDate').value = nextSchoolDayISO();
+        document.getElementById('importHint').textContent = '';
+        importBack();
+        onImportDayChange();
         document.getElementById('importModal').classList.add('active');
     }
     function closeImportModal() { document.getElementById('importModal').classList.remove('active'); }
+    function importBack() {
+        document.getElementById('importStep1').style.display = '';
+        document.getElementById('importStep2').style.display = 'none';
+    }
     function onImportDayChange() {
         document.getElementById('importDate').style.display = document.getElementById('importDay').value === 'date' ? '' : 'none';
     }
@@ -883,7 +909,7 @@
         if (key.length < 3) return null;
         return ALL_SUBJECTS.find(s => {
             const ls = letters(s);
-            return ls.includes(key) || key.includes(ls) || (key.length >= 5 && ls.slice(0, 5) === key.slice(0, 5));
+            return ls.includes(key) || (ls.length >= 5 && key.includes(ls)) || (key.length >= 5 && ls.slice(0, 5) === key.slice(0, 5));
         }) || null;
     }
 
@@ -903,26 +929,109 @@
     }
 
     function detectType(text) {
-        const lower = text.toLowerCase();
-        if (lower.includes('наизусть') || lower.includes('выучи')) return 'memorize';
-        if (lower.includes('устн') || lower.includes('пересказ')) return 'oral';
-        if (lower.includes('прочита') || lower.includes('стр') || lower.includes('параграф') || lower.includes('§')) return 'read';
+        const l = text.toLowerCase();
+        if (/наизусть|выучи/.test(l)) return 'memorize';
+        if (/устн|пересказ|расскаж/.test(l)) return 'oral';
+        if (/упр|№|задач|письмен|написа|нарисова|выписа|записа|решить|выполни|заполни|подпис|составить|таблиц|карточк/.test(l)) return 'written';
+        if (/прочита|читать|читай|чтени|параграф|§|стр\b|с\.\s*\d/.test(l)) return 'read';
         return 'written';
     }
 
-    function parseAndImport() {
-        const raw = document.getElementById('peshRawText').value;
-        if (!raw.trim()) return;
-        const forced = document.getElementById('importSubject').value;   // 'auto' или название предмета
-        const mode = document.getElementById('importDay').value;         // 'auto' или 'date'
-        let fixedPlace = null;
-        if (mode === 'date') {
-            fixedPlace = placeOrToast(document.getElementById('importDate').value);
-            if (!fixedPlace) return;
-        }
-        const touched = new Set();
-        let added = 0, firstWeek = null;
+    // Дата вкладки из шапки дневника: «Сб 19 сентября» -> ISO (год подбирается по дню недели)
+    function detectDueDate(raw) {
+        const re = new RegExp('(?:^|[^а-яё])(пн|вт|ср|чт|пт|сб|вс)\\s*(\\d{1,2})\\s+(' + MONTHS_GEN.join('|') + ')', 'i');
+        const m = raw.match(re);
+        if (!m) return null;
+        const wd = WD_ABBR.indexOf(m[1].toLowerCase());
+        const day = parseInt(m[2], 10);
+        const month = MONTHS_GEN.indexOf(m[3].toLowerCase());
+        const today = new Date();
+        let best = null, bestDiff = Infinity;
+        [today.getFullYear() - 1, today.getFullYear(), today.getFullYear() + 1].forEach(y => {
+            const d = new Date(y, month, day);
+            if (d.getMonth() !== month) return;
+            if ((d.getDay() + 6) % 7 !== wd) return;
+            const diff = Math.abs(d - today);
+            if (diff < bestDiff) { best = d; bestDiff = diff; }
+        });
+        return best ? toISO(best) : null;
+    }
 
+    // «1) ... 2) ... 3) ...» -> отдельные пункты (только если нумерация идёт по порядку 1, 2, 3…)
+    function splitNumbered(text) {
+        const re = /(?:^|[\s,;])(\d{1,2})\)\s*/g;
+        const marks = [];
+        let m, expected = 1;
+        while ((m = re.exec(text)) !== null) {
+            if (parseInt(m[1], 10) === expected) { marks.push({ start: m.index, end: re.lastIndex }); expected++; }
+        }
+        if (marks.length < 2) return [text];
+        const parts = [];
+        for (let i = 0; i < marks.length; i++) {
+            const to = i + 1 < marks.length ? marks[i + 1].start : text.length;
+            const part = text.slice(marks[i].end, to).replace(/[\s,;]+$/, '').trim();
+            if (part) parts.push(part);
+        }
+        return parts.length ? parts : [text];
+    }
+
+    const STATUS_RE = /^(задано|выполнено|проверено)$/i;
+    const DATE_END_RE = /^(.*?)\s*(\d{1,2}\.\d{2}\.\d{4})$/;
+
+    // Текст экрана «Домашнее задание»: карточки «Предмет + дата выдачи / задано / текст»
+    function parseDiaryText(raw) {
+        let lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        // отрезаем рекламу внизу экрана
+        const ad = lines.findIndex(l => /реклама/i.test(l));
+        if (ad >= 0) {
+            lines = lines.slice(0, ad);
+            if (lines.length && /^[\w.-]+\.[a-zа-я]{2,}$/i.test(lines[lines.length - 1])) lines.pop();
+        }
+        // убираем шапку: заголовок, вкладки с датами, обрезанные слова
+        const monthRe = new RegExp('^(' + MONTHS_GEN.join('|') + ')$', 'i');
+        lines = lines.filter(l =>
+            !/^домашнее задание$/i.test(l) &&
+            !/^(пн|вт|ср|чт|пт|сб|вс)\s*\d{1,2}(\s+[а-яё]+)?$/i.test(l) &&
+            !monthRe.test(l) &&
+            !/^[а-яёa-z]$/i.test(l));
+
+        const cards = [];
+        let cur = null;
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const next = lines[i + 1] || '';
+            const dm = line.match(DATE_END_RE);
+            if (dm && STATUS_RE.test(next)) {
+                let subject = dm[1].trim();
+                if (!subject) {   // название стояло отдельной строкой над датой
+                    subject = i > 0 ? lines[i - 1] : '';
+                    if (cur && cur.body.length && cur.body[cur.body.length - 1] === subject) cur.body.pop();
+                }
+                cur = { subject: subject || 'Общие', body: [] };
+                cards.push(cur);
+                i++;   // пропускаем строку «задано»
+            } else if (STATUS_RE.test(line)) {
+                continue;
+            } else if (cur) {
+                cur.body.push(line);
+            }
+        }
+
+        const items = [];
+        cards.forEach(card => {
+            const text = card.body.join(' ').replace(/\s+/g, ' ').trim();
+            if (!text) return;
+            const canon = matchSubject(card.subject);
+            splitNumbered(text).forEach(part => items.push({
+                subject: canon || ('📖 ' + card.subject), canon: canon, text: part, type: detectType(part)
+            }));
+        });
+        return { items: items, dueISO: detectDueDate(raw) };
+    }
+
+    // Простой вариант: одна строка = одно задание, можно с «Предмет: задание»
+    function parseSimpleLines(raw, forced) {
+        const items = [];
         raw.split('\n').forEach(line => {
             line = line.trim();
             if (!line) return;
@@ -930,7 +1039,6 @@
             let canon = null, subjRaw = '', taskText = line;
             if (forced !== 'auto') {
                 canon = forced;
-                // если строка начинается с названия этого же предмета («Алгебра: ...»), убираем его
                 if (idx > 0 && matchSubject(line.slice(0, idx).trim()) === canon) taskText = line.slice(idx + 1).trim();
             } else {
                 subjRaw = idx > 0 ? line.slice(0, idx).trim() : '';
@@ -938,35 +1046,103 @@
                 canon = subjRaw ? matchSubject(subjRaw) : null;
             }
             if (!taskText) return;
-            const subjName = canon || (subjRaw ? '📖 ' + subjRaw : '📖 Общие');
+            items.push({ subject: canon || (subjRaw ? '📖 ' + subjRaw : '📖 Общие'), canon: canon, text: taskText, type: detectType(taskText) });
+        });
+        return items;
+    }
 
-            let target = fixedPlace;
-            if (!target && canon) target = findNextLesson(canon);
-            if (!target) target = { weekStart: currentWeekStart, dayId: selectedDayId || 'mon' };
+    function analyzeImport() {
+        const raw = document.getElementById('peshRawText').value;
+        const isDiary = /\d{1,2}\.\d{2}\.\d{4}/.test(raw) && /задано/i.test(raw);
+        if (isDiary) {
+            const r = parseDiaryText(raw);
+            return { raw: raw, isDiary: true, items: r.items, dueISO: r.dueISO };
+        }
+        return { raw: raw, isDiary: false, items: parseSimpleLines(raw, document.getElementById('importSubject').value), dueISO: null };
+    }
 
-            const week = getWeek(target.weekStart);
-            const day = getDay(week, target.dayId);
-            let sub = day.subjects.find(s => s.name === subjName || (canon === null && letters(s.name) === letters(subjName)));
-            if (!sub) {
-                sub = { id: uid('s'), name: subjName, tasks: [] };
-                day.subjects.push(sub);
-            }
-            sub.tasks.push({ id: uid('t'), text: taskText, type: detectType(taskText), done: false, important: false });
-            touched.add(week);
-            added++;
-            if (!firstWeek) firstWeek = week.start;
+    function updateImportHint() {
+        const hint = document.getElementById('importHint');
+        if (!document.getElementById('peshRawText').value.trim()) { hint.textContent = ''; return; }
+        const a = analyzeImport();
+        let text = 'Распознано заданий: ' + a.items.length;
+        if (a.isDiary) {
+            const place = placeFor(a.dueISO);
+            text += place ? ' · день в дневнике: ' + placeLabel(place) : ' · дата вкладки не найдена';
+        }
+        hint.textContent = text;
+    }
+
+    // Шаг 1: разбираем текст и показываем предпросмотр
+    function parseAndImport() {
+        const a = analyzeImport();
+        if (!a.raw.trim()) return;
+        if (a.items.length === 0) { showToast('Не нашёл заданий в тексте'); return; }
+
+        const mode = document.getElementById('importDay').value;   // 'text' | 'auto' | 'date'
+        let fixed = null;
+        if (mode === 'date') {
+            fixed = placeOrToast(document.getElementById('importDate').value);
+            if (!fixed) return;
+        } else if (mode === 'text') {
+            fixed = placeFor(a.dueISO);   // если даты нет — ниже возьмём ближайший урок предмета
+        }
+
+        importItems = a.items.map(it => {
+            let place = fixed;
+            if (!place && it.canon) place = findNextLesson(it.canon);
+            if (!place) place = { weekStart: currentWeekStart, dayId: selectedDayId || 'mon' };
+            return Object.assign({}, it, { place: place, selected: true });
         });
 
-        touched.forEach(saveWeek);
+        document.getElementById('importPreview').innerHTML = importItems.map((it, i) =>
+            '<label class="prev-row"><input type="checkbox" checked onchange="toggleImportItem(' + i + ', this.checked)">' +
+            '<div><div class="prev-head">' + esc(it.subject) + ' · ' + esc(placeLabel(it.place)) + ' · ' + getTypeTag(it.type) + '</div>' +
+            '<div class="prev-text">' + esc(it.text) + '</div></div></label>').join('');
+        updateImportCount();
+        document.getElementById('importStep1').style.display = 'none';
+        document.getElementById('importStep2').style.display = '';
+    }
+
+    function toggleImportItem(i, checked) {
+        if (importItems[i]) importItems[i].selected = !!checked;
+        updateImportCount();
+    }
+    function updateImportCount() {
+        const n = importItems.filter(it => it.selected).length;
+        document.getElementById('importCommitBtn').textContent = 'Добавить выбранные (' + n + ')';
+    }
+
+    // Шаг 2: добавляем выбранное
+    function commitImport() {
+        const sel = importItems.filter(it => it.selected);
+        if (!sel.length) { showToast('Ничего не выбрано'); return; }
+        const toSave = new Set();
+        let added = 0, dup = 0;
+        sel.forEach(it => {
+            const week = getWeek(it.place.weekStart);
+            const day = getDay(week, it.place.dayId);
+            let sub = day.subjects.find(s => s.name === it.subject || (!it.canon && letters(s.name) === letters(it.subject)));
+            if (!sub) { sub = { id: uid('s'), name: it.subject, tasks: [] }; day.subjects.push(sub); }
+            const key = it.text.toLowerCase();
+            if (sub.tasks.some(t => String(t.text).trim().toLowerCase() === key)) { dup++; return; }   // уже есть
+            sub.tasks.push({ id: uid('t'), text: it.text, type: it.type, done: false, important: false });
+            toSave.add(week);
+            added++;
+        });
+        toSave.forEach(saveWeek);
         closeImportModal();
         document.getElementById('peshRawText').value = '';
+        importItems = [];
         if (added > 0) {
-            currentWeekStart = firstWeek;
-            selectedDayId = null;
+            const first = sel[0].place;
+            const samePlace = sel.every(it => it.place.weekStart === first.weekStart && it.place.dayId === first.dayId);
+            currentWeekStart = first.weekStart;
+            selectedDayId = samePlace ? first.dayId : null;
             currentTab = 'tasks';
             switchTab('tasks');
-            showToast('Добавлено заданий: ' + added);
         }
+        showToast('Добавлено: ' + added + (dup ? ', уже были: ' + dup : ''));
     }
 
     // ================== Заполнение выпадающих списков ==================
