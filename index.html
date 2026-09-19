@@ -66,7 +66,13 @@
         .btn-add-inline { background: #e0e7ff; border: none; font-size: 11px; cursor: pointer; color: var(--primary-color); font-weight: 600; padding: 4px 8px; border-radius: 6px; margin-right: 4px; }
         .btn-delete-subject { background: #fee2e2; border: none; font-size: 11px; cursor: pointer; color: #ef4444; font-weight: 600; padding: 4px 8px; border-radius: 6px; }
 
-        .subtask-item { display: flex; align-items: center; padding: 8px 0; gap: 8px; border-bottom: 1px solid #f1f5f9; }
+        .subtask-item { padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+        .task-main { display: flex; align-items: center; gap: 8px; }
+        .task-actions { display: flex; gap: 6px; margin: 6px 0 0 30px; flex-wrap: wrap; }
+        .btn-mini { background: #f1f5f9; border: none; font-size: 11px; cursor: pointer; color: var(--text-main); padding: 6px 10px; border-radius: 6px; font-weight: 600; }
+        .btn-mini.danger { color: #ef4444; }
+        .btn-quick { width: 100%; text-align: left; background: #f1f5f9; border: none; padding: 12px; border-radius: 10px; font-size: 13px; font-weight: 600; color: var(--text-main); cursor: pointer; margin-bottom: 6px; }
+        .field-label { font-size: 11px; color: var(--text-sub); margin: 6px 0 3px; font-weight: 600; }
         .subtask-item:last-child { border-bottom: none; }
         .checkbox { width: 22px; height: 22px; border-radius: 6px; border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; background: #fff; }
         .checkbox.checked { background-color: #22c55e; border-color: #22c55e; color: white; }
@@ -150,17 +156,16 @@
 <div class="modal" id="importModal" onclick="if(event.target===this) closeImportModal()">
     <div class="modal-body">
         <div class="modal-title">Импорт из «Петербургского образования»</div>
-        <p style="font-size: 11px; color: var(--text-sub); margin-bottom: 8px;">Вставьте текст из дневника, один предмет на строке:</p>
-        <textarea class="pesh-input" id="peshRawText" placeholder="Алгебра: № 345, 347 письменно&#10;Литература: прочитать стр. 40-50"></textarea>
-        <select id="importDay" class="field">
+        <p style="font-size: 11px; color: var(--text-sub); margin-bottom: 8px;">Выберите предмет и вставьте задания из дневника (одно задание на строке):</p>
+        <div class="field-label">Предмет</div>
+        <select id="importSubject" class="field"></select>
+        <textarea class="pesh-input" id="peshRawText" placeholder="№ 345, 347 письменно&#10;прочитать стр. 40-50&#10;(или «Алгебра: № 345», если предмет выбран «по тексту»)"></textarea>
+        <div class="field-label">На какую дату</div>
+        <select id="importDay" class="field" onchange="onImportDayChange()">
             <option value="auto">На ближайший урок этого предмета</option>
-            <option value="mon">Понедельник (выбранной недели)</option>
-            <option value="tue">Вторник (выбранной недели)</option>
-            <option value="wed">Среда (выбранной недели)</option>
-            <option value="thu">Четверг (выбранной недели)</option>
-            <option value="fri">Пятница (выбранной недели)</option>
-            <option value="sat">Суббота (выбранной недели)</option>
+            <option value="date">На выбранную дату</option>
         </select>
+        <input type="date" id="importDate" class="field" style="display:none">
         <button class="btn-primary" onclick="parseAndImport()">Разобрать и добавить</button>
         <button class="btn-secondary" onclick="closeImportModal()">Отмена</button>
     </div>
@@ -188,6 +193,43 @@
         </select>
         <button class="btn-primary" onclick="saveTaskForm()">Сохранить</button>
         <button class="btn-secondary" onclick="closeAddModal()">Отмена</button>
+    </div>
+</div>
+
+<!-- Модальное окно: Изменить задание -->
+<div class="modal" id="editModal" onclick="if(event.target===this) closeEditModal()">
+    <div class="modal-body">
+        <div class="modal-title">Изменить задание</div>
+        <div class="field-label" id="editSubjectLabel"></div>
+        <input type="text" id="editText1" class="field" placeholder="Текст задания">
+        <select id="editType1" class="field"></select>
+        <div class="field-label">Дата</div>
+        <input type="date" id="editDate1" class="field">
+        <button class="btn-secondary" id="splitToggleBtn" onclick="toggleSplit()" style="margin-bottom:10px;">✂️ Разделить на 2 пункта</button>
+        <div id="splitBlock" style="display:none; border-top:1px dashed #cbd5e1; padding-top:8px; margin-bottom:6px;">
+            <div class="field-label">Второй пункт</div>
+            <input type="text" id="editText2" class="field" placeholder="Текст второго пункта">
+            <select id="editType2" class="field"></select>
+            <div class="field-label">Дата второго пункта</div>
+            <input type="date" id="editDate2" class="field">
+        </div>
+        <button class="btn-primary" onclick="saveEdit()">Сохранить</button>
+        <button class="btn-secondary" onclick="closeEditModal()">Отмена</button>
+    </div>
+</div>
+
+<!-- Модальное окно: Перенос задания -->
+<div class="modal" id="moveModal" onclick="if(event.target===this) closeMoveModal()">
+    <div class="modal-body">
+        <div class="modal-title">Перенести задание</div>
+        <div id="moveTaskInfo" style="font-size:12px; color:var(--text-sub); margin-bottom:10px; word-break:break-word;"></div>
+        <button class="btn-quick" onclick="quickMove('tomorrow')">➡️ На завтра (ближайший учебный день)</button>
+        <button class="btn-quick" onclick="quickMove('nextLesson')">📚 На следующий урок этого предмета</button>
+        <button class="btn-quick" onclick="quickMove('week')">🔁 На неделю позже (тот же день)</button>
+        <div class="field-label">Или выберите дату:</div>
+        <input type="date" id="moveDate" class="field">
+        <button class="btn-primary" onclick="quickMove('date')">Перенести на эту дату</button>
+        <button class="btn-secondary" onclick="closeMoveModal()">Отмена</button>
     </div>
 </div>
 
@@ -505,12 +547,17 @@
                 const type = safeType(task.type);
                 tasksHtml +=
                     '<div class="subtask-item">' +
+                    '<div class="task-main">' +
                     '<div class="checkbox' + (task.done ? ' checked' : '') + '" onclick="toggleTask(\'' + id + '\')"></div>' +
                     '<span class="task-tag tag-' + type + '">' + getTypeTag(type) + '</span>' +
-                    '<div class="subtask-text' + (task.done ? ' completed' : '') + '" onclick="openEditModal(\'' + id + '\')" title="Нажмите, чтобы изменить">' + esc(task.text) + '</div>' +
+                    '<div class="subtask-text' + (task.done ? ' completed' : '') + '">' + esc(task.text) + '</div>' +
                     '<span class="star" onclick="toggleImportant(\'' + id + '\')">' + (task.important ? '⭐️' : '☆') + '</span>' +
-                    '<button class="btn-delete-item" title="Удалить только этот пункт" onclick="askDeleteTaskItem(\'' + id + '\')">❌</button>' +
-                    '</div>';
+                    '</div>' +
+                    '<div class="task-actions">' +
+                    '<button class="btn-mini" onclick="openMoveModal(\'' + id + '\')">📅 Перенести</button>' +
+                    '<button class="btn-mini" onclick="openEditModal(\'' + id + '\')">✏️ Изменить</button>' +
+                    '<button class="btn-mini danger" onclick="askDeleteTaskItem(\'' + id + '\')">🗑️ Удалить</button>' +
+                    '</div></div>';
             });
             html += '<div class="subject-detail-group">' +
                 '<div class="subject-detail-title"><span>' + esc(sub.name) + '</span><div>' +
@@ -625,23 +672,64 @@
         if (sub) openAddModal(sub.name, dayId);
     }
 
-    function openEditModal(taskId) {
-        const f = findTask(taskId);
-        if (!f) return;
-        editingTaskId = taskId;
-        document.getElementById('modalTitleText').textContent = 'Изменить задание';
-        document.getElementById('addSubjectSelect').style.display = 'none';
-        document.getElementById('addDay').style.display = 'none';
-        const input = document.getElementById('addTaskText');
-        input.value = f.t.text;
-        input.classList.remove('error');
-        document.getElementById('addType').value = safeType(f.t.type);
-        document.getElementById('addModal').classList.add('active');
+    // ---- вспомогательные функции для дат и переноса ----
+    let splitBackup = null;
+    let movingTaskId = null;
+
+    function taskDateOf(f) { return addDays(fromISO(f.w.start), DAY_IDS.indexOf(f.d.id)); }
+
+    function placeFor(iso) {
+        if (!iso) return null;
+        const d = fromISO(iso);
+        const idx = (d.getDay() + 6) % 7;
+        if (idx > 5) return null;   // воскресенье
+        return { weekStart: mondayISO(d), dayId: DAY_IDS[idx] };
+    }
+    function placeOrToast(iso) {
+        if (!iso) { showToast('Выберите дату'); return null; }
+        const p = placeFor(iso);
+        if (!p) showToast('Воскресенье — выходной, выберите другой день');
+        return p;
+    }
+    function placeLabel(place) {
+        return DAY_SHORT[place.dayId] + ', ' + fmtDay(addDays(fromISO(place.weekStart), DAY_IDS.indexOf(place.dayId)));
+    }
+    function nextSchoolDayISO() {
+        const t = new Date();
+        for (let i = 1; i <= 7; i++) {
+            const d = addDays(t, i);
+            if ((d.getDay() + 6) % 7 <= 5) return toISO(d);
+        }
+        return toISO(addDays(t, 1));
+    }
+    function getDay(week, dayId) {
+        let d = week.days.find(x => x.id === dayId);
+        if (!d) {
+            d = { id: dayId, name: DAY_NAMES[dayId] || dayId, subjects: [] };
+            week.days.push(d);
+            week.days.sort((a, b) => DAY_IDS.indexOf(a.id) - DAY_IDS.indexOf(b.id));
+        }
+        return d;
+    }
+    function addTaskToPlace(subjName, task, place, toSave) {
+        const week = getWeek(place.weekStart);
+        const day = getDay(week, place.dayId);
+        let sub = day.subjects.find(s => s.name === subjName);
+        if (!sub) { sub = { id: uid('s'), name: subjName, tasks: [] }; day.subjects.push(sub); }
+        sub.tasks.push(task);
+        toSave.add(week);
+    }
+    function moveTaskTo(f, place, toSave) {
+        if (place.weekStart === f.w.start && place.dayId === f.d.id) return false;
+        f.s.tasks = f.s.tasks.filter(t => t.id !== f.t.id);
+        toSave.add(f.w);
+        addTaskToPlace(f.s.name, f.t, place, toSave);
+        return true;
     }
 
+    // ---- добавление задания ----
     function closeAddModal() {
         document.getElementById('addModal').classList.remove('active');
-        editingTaskId = null;
     }
 
     function saveTaskForm() {
@@ -649,30 +737,146 @@
         const text = input.value.trim();
         if (!text) { input.classList.add('error'); input.focus(); return; }
         const type = document.getElementById('addType').value;
-
-        if (editingTaskId) {
-            const f = findTask(editingTaskId);
-            if (f) { f.t.text = text; f.t.type = type; saveWeek(f.w); }
-        } else {
-            const subjName = document.getElementById('addSubjectSelect').value;
-            const dayCode = document.getElementById('addDay').value;
-            const week = getWeek(currentWeekStart);
-            const day = week.days.find(d => d.id === dayCode) || week.days[0];
-            let sub = day.subjects.find(s => s.name === subjName);
-            if (!sub) {
-                sub = { id: uid('s'), name: subjName, tasks: [] };
-                day.subjects.push(sub);
-            }
-            sub.tasks.push({ id: uid('t'), text: text, type: type, done: false, important: false });
-            saveWeek(week);
-        }
+        const subjName = document.getElementById('addSubjectSelect').value;
+        const dayCode = document.getElementById('addDay').value;
+        const week = getWeek(currentWeekStart);
+        const day = getDay(week, dayCode);
+        let sub = day.subjects.find(s => s.name === subjName);
+        if (!sub) { sub = { id: uid('s'), name: subjName, tasks: [] }; day.subjects.push(sub); }
+        sub.tasks.push({ id: uid('t'), text: text, type: type, done: false, important: false });
+        saveWeek(week);
         closeAddModal();
         render();
     }
 
+    // ---- изменение задания: текст, тип, дата, разделение на 2 пункта ----
+    function openEditModal(taskId) {
+        const f = findTask(taskId);
+        if (!f) return;
+        editingTaskId = taskId;
+        splitBackup = null;
+        document.getElementById('editSubjectLabel').textContent = 'Предмет: ' + f.s.name;
+        document.getElementById('editText1').classList.remove('error');
+        document.getElementById('editText2').classList.remove('error');
+        document.getElementById('editText1').value = f.t.text;
+        document.getElementById('editType1').value = safeType(f.t.type);
+        document.getElementById('editDate1').value = toISO(taskDateOf(f));
+        document.getElementById('splitBlock').style.display = 'none';
+        document.getElementById('splitToggleBtn').textContent = '✂️ Разделить на 2 пункта';
+        document.getElementById('editModal').classList.add('active');
+    }
+    function closeEditModal() {
+        document.getElementById('editModal').classList.remove('active');
+        editingTaskId = null;
+    }
+
+    function toggleSplit() {
+        const block = document.getElementById('splitBlock');
+        const btn = document.getElementById('splitToggleBtn');
+        const t1 = document.getElementById('editText1');
+        const t2 = document.getElementById('editText2');
+        if (block.style.display === 'none') {
+            const text = t1.value.trim();
+            splitBackup = t1.value;
+            // пробуем разделить по первой запятой, точке с запятой, переносу строки или « и »
+            const m = text.match(/\s*(?:[;\n]|,\s|\s+и\s+)\s*/);
+            if (m) { t1.value = text.slice(0, m.index); t2.value = text.slice(m.index + m[0].length); }
+            else { t2.value = ''; }
+            document.getElementById('editType2').value = document.getElementById('editType1').value;
+            document.getElementById('editDate2').value = document.getElementById('editDate1').value;
+            block.style.display = '';
+            btn.textContent = '✖ Не разделять';
+            (t2.value ? t1 : t2).focus();
+        } else {
+            if (splitBackup !== null) t1.value = splitBackup;
+            block.style.display = 'none';
+            btn.textContent = '✂️ Разделить на 2 пункта';
+        }
+    }
+
+    function saveEdit() {
+        const f = findTask(editingTaskId);
+        if (!f) { closeEditModal(); return; }
+        const t1 = document.getElementById('editText1');
+        const t2 = document.getElementById('editText2');
+        const text1 = t1.value.trim();
+        if (!text1) { t1.classList.add('error'); t1.focus(); return; }
+        const splitOn = document.getElementById('splitBlock').style.display !== 'none';
+        let text2 = '';
+        if (splitOn) {
+            text2 = t2.value.trim();
+            if (!text2) { t2.classList.add('error'); t2.focus(); return; }
+        }
+        const place1 = placeOrToast(document.getElementById('editDate1').value);
+        if (!place1) return;
+        let place2 = null;
+        if (splitOn) {
+            place2 = placeOrToast(document.getElementById('editDate2').value);
+            if (!place2) return;
+        }
+
+        const toSave = new Set([f.w]);
+        f.t.text = text1;
+        f.t.type = document.getElementById('editType1').value;
+        moveTaskTo(f, place1, toSave);
+        if (splitOn) {
+            const second = { id: uid('t'), text: text2, type: document.getElementById('editType2').value, done: false, important: !!f.t.important };
+            addTaskToPlace(f.s.name, second, place2, toSave);
+        }
+        toSave.forEach(saveWeek);
+        closeEditModal();
+        render();
+        showToast(splitOn ? 'Задание разделено на 2 пункта' : 'Сохранено');
+    }
+
+    // ---- перенос задания ----
+    function openMoveModal(taskId) {
+        const f = findTask(taskId);
+        if (!f) return;
+        movingTaskId = taskId;
+        document.getElementById('moveTaskInfo').textContent = f.s.name + ': ' + f.t.text;
+        document.getElementById('moveDate').value = nextSchoolDayISO();
+        document.getElementById('moveModal').classList.add('active');
+    }
+    function closeMoveModal() {
+        document.getElementById('moveModal').classList.remove('active');
+        movingTaskId = null;
+    }
+    function quickMove(kind) {
+        const f = findTask(movingTaskId);
+        if (!f) { closeMoveModal(); return; }
+        const taskDate = taskDateOf(f);
+        const today = new Date();
+        let place = null;
+        if (kind === 'tomorrow') {
+            place = placeFor(nextSchoolDayISO());
+        } else if (kind === 'nextLesson') {
+            const base = taskDate > today ? taskDate : today;
+            place = findNextLesson(f.s.name, base);
+            if (!place) { showToast('Этого предмета нет в расписании'); return; }
+        } else if (kind === 'week') {
+            place = placeFor(toISO(addDays(taskDate, 7)));
+        } else {
+            place = placeOrToast(document.getElementById('moveDate').value);
+        }
+        if (!place) return;
+        const toSave = new Set();
+        const moved = moveTaskTo(f, place, toSave);
+        toSave.forEach(saveWeek);
+        closeMoveModal();
+        render();
+        showToast(moved ? 'Перенесено: ' + placeLabel(place) : 'Задание уже стоит на этой дате');
+    }
+
     // ================== Импорт из ПЭШ ==================
-    function openImportModal() { document.getElementById('importModal').classList.add('active'); }
+    function openImportModal() {
+        document.getElementById('importDate').value = nextSchoolDayISO();
+        document.getElementById('importModal').classList.add('active');
+    }
     function closeImportModal() { document.getElementById('importModal').classList.remove('active'); }
+    function onImportDayChange() {
+        document.getElementById('importDate').style.display = document.getElementById('importDay').value === 'date' ? '' : 'none';
+    }
 
     function matchSubject(name) {
         const key = letters(name);
@@ -683,11 +887,11 @@
         }) || null;
     }
 
-    // Ближайший день (начиная с завтра), когда по расписанию есть этот предмет
-    function findNextLesson(canonName) {
-        const today = new Date();
-        for (let i = 1; i <= 14; i++) {
-            const d = addDays(today, i);
+    // Ближайший день после fromDate (по умолчанию после сегодня), когда по расписанию есть этот предмет
+    function findNextLesson(canonName, fromDate) {
+        const base = fromDate || new Date();
+        for (let i = 1; i <= 21; i++) {
+            const d = addDays(base, i);
             const idx = (d.getDay() + 6) % 7;
             if (idx > 5) continue;
             const id = DAY_IDS[idx];
@@ -709,7 +913,13 @@
     function parseAndImport() {
         const raw = document.getElementById('peshRawText').value;
         if (!raw.trim()) return;
-        const mode = document.getElementById('importDay').value;
+        const forced = document.getElementById('importSubject').value;   // 'auto' или название предмета
+        const mode = document.getElementById('importDay').value;         // 'auto' или 'date'
+        let fixedPlace = null;
+        if (mode === 'date') {
+            fixedPlace = placeOrToast(document.getElementById('importDate').value);
+            if (!fixedPlace) return;
+        }
         const touched = new Set();
         let added = 0, firstWeek = null;
 
@@ -717,23 +927,25 @@
             line = line.trim();
             if (!line) return;
             const idx = line.indexOf(':');
-            const subjRaw = idx > 0 ? line.slice(0, idx).trim() : '';
-            const taskText = (idx > 0 ? line.slice(idx + 1) : line).trim();
+            let canon = null, subjRaw = '', taskText = line;
+            if (forced !== 'auto') {
+                canon = forced;
+                // если строка начинается с названия этого же предмета («Алгебра: ...»), убираем его
+                if (idx > 0 && matchSubject(line.slice(0, idx).trim()) === canon) taskText = line.slice(idx + 1).trim();
+            } else {
+                subjRaw = idx > 0 ? line.slice(0, idx).trim() : '';
+                taskText = (idx > 0 ? line.slice(idx + 1) : line).trim();
+                canon = subjRaw ? matchSubject(subjRaw) : null;
+            }
             if (!taskText) return;
-
-            const canon = subjRaw ? matchSubject(subjRaw) : null;
             const subjName = canon || (subjRaw ? '📖 ' + subjRaw : '📖 Общие');
 
-            let target;
-            if (mode === 'auto') {
-                target = canon ? findNextLesson(canon) : null;
-                if (!target) target = { weekStart: currentWeekStart, dayId: selectedDayId || 'mon' };
-            } else {
-                target = { weekStart: currentWeekStart, dayId: mode };
-            }
+            let target = fixedPlace;
+            if (!target && canon) target = findNextLesson(canon);
+            if (!target) target = { weekStart: currentWeekStart, dayId: selectedDayId || 'mon' };
 
             const week = getWeek(target.weekStart);
-            const day = week.days.find(d => d.id === target.dayId) || week.days[0];
+            const day = getDay(week, target.dayId);
             let sub = day.subjects.find(s => s.name === subjName || (canon === null && letters(s.name) === letters(subjName)));
             if (!sub) {
                 sub = { id: uid('s'), name: subjName, tasks: [] };
@@ -756,6 +968,16 @@
             showToast('Добавлено заданий: ' + added);
         }
     }
+
+    // ================== Заполнение выпадающих списков ==================
+    const TYPE_OPTIONS = TYPES.map(t => '<option value="' + t + '">' + getTypeTag(t) + '</option>').join('');
+    function initSelects() {
+        ['addType', 'editType1', 'editType2'].forEach(id => { document.getElementById(id).innerHTML = TYPE_OPTIONS; });
+        document.getElementById('importSubject').innerHTML =
+            '<option value="auto">Определить по тексту («Предмет: задание»)</option>' +
+            ALL_SUBJECTS.map(s => '<option value="' + esc(s) + '">' + esc(s) + '</option>').join('');
+    }
+    initSelects();
 
     render();
 </script>
