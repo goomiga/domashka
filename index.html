@@ -114,6 +114,43 @@
         .btn-danger { width: 100%; background: #ef4444; color: white; border: none; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 8px; }
         .btn-secondary { width: 100%; background: #e2e8f0; color: var(--text-main); border: none; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; }
 
+        .day-strip { display: flex; gap: 4px; margin-bottom: 8px; }
+        .day-btn { flex: 1; border: none; background: #edf2f7; border-radius: 10px; padding: 6px 0 2px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; color: var(--text-main); font-size: 11px; }
+        .day-btn b { font-size: 14px; }
+        .day-btn.today { box-shadow: 0 0 0 1px var(--primary-color) inset; }
+        .day-btn.active { background: var(--primary-color); color: #fff; }
+        .day-btn .dm { font-size: 9px; line-height: 11px; height: 11px; color: var(--primary-color); }
+        .day-btn.active .dm { color: #fff; }
+        .day-btn .dm.ok { color: #16a34a; font-weight: 700; }
+        .day-btn.active .dm.ok { color: #bbf7d0; }
+        .day-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 4px; }
+        .day-title { font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 4px; }
+        .subj-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .subj-left .lesson-num { flex-shrink: 0; font-size: 11px; }
+        .subj-time { font-size: 11px; color: var(--text-sub); font-weight: 500; }
+        .subject-detail-group.subj-done { border-color: #86efac; background: #f7fef9; }
+        .subject-detail-group.subj-empty { padding: 8px 12px; }
+        .subject-detail-group.subj-empty .subject-detail-title { margin-bottom: 0; }
+        .no-tasks { font-size: 11px; color: #94a3b8; }
+        .sched-grid { display: grid; grid-template-columns: 30px repeat(6, 1fr); gap: 3px; }
+        .g-head { text-align: center; font-size: 11px; font-weight: 700; color: var(--text-main); padding: 4px 0; border-radius: 8px; background: #e2e8f0; cursor: pointer; }
+        .g-head span { display: block; font-size: 10px; font-weight: 500; opacity: 0.8; }
+        .g-head.today { background: var(--primary-color); color: #fff; }
+        .g-num { display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--primary-color); }
+        .g-num small { font-size: 8px; color: var(--text-sub); font-weight: 500; }
+        .g-cell { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; min-height: 58px; padding: 3px 1px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; cursor: pointer; overflow: hidden; }
+        .g-cell.empty { background: transparent; border: none; cursor: default; }
+        .g-ico { font-size: 15px; line-height: 16px; }
+        .g-name { font-size: 9px; line-height: 10px; color: var(--text-main); word-break: break-word; }
+        .g-dots { display: flex; gap: 3px; height: 10px; align-items: center; justify-content: center; }
+        .g-dots i, .legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .legend i { margin-right: 4px; }
+        .d-written { background: var(--color-written); }
+        .d-oral { background: var(--color-oral); }
+        .d-memorize { background: var(--color-memorize); }
+        .d-read { background: var(--color-read); }
+        .g-ok { color: #16a34a; font-size: 11px; font-weight: 700; line-height: 10px; }
+        .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 11px; color: var(--text-sub); margin: 10px 2px; }
         .toast { position: absolute; left: 50%; bottom: 76px; transform: translateX(-50%); background: #1f2937; color: #fff; padding: 8px 14px; border-radius: 20px; font-size: 12px; z-index: 200; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
         .toast.show { opacity: 1; }
     </style>
@@ -127,6 +164,7 @@
             <div class="week-label" id="weekLabel" onclick="goToCurrentWeek()" title="Нажмите, чтобы вернуться к этой неделе">…</div>
             <button class="week-nav-btn" onclick="changeWeek(1)">►</button>
         </div>
+        <div class="day-strip" id="dayStrip"></div>
         <div class="filters-scroll" id="filtersBlock">
             <div class="chip active" onclick="setFilter('all', this)">Все</div>
             <div class="chip" onclick="setFilter('important', this)">⭐️ Важные</div>
@@ -162,16 +200,13 @@
     <div class="modal-body">
         <div id="importStep1">
             <div class="modal-title">Импорт из «Петербургского образования»</div>
-            <p style="font-size: 11px; color: var(--text-sub); margin-bottom: 8px;">Откройте в дневнике «Домашнее задание», выделите весь текст экрана, скопируйте и вставьте сюда. Один день дневника — одна вставка.</p>
+            <p style="font-size: 11px; color: var(--text-sub); margin-bottom: 8px;">Откройте в дневнике «Домашнее задание», выделите весь текст экрана, скопируйте и вставьте сюда. Один день дневника — одна вставка, а ниже выберите тот же день, что на вкладке в дневнике.</p>
             <textarea class="pesh-input" id="peshRawText" oninput="updateImportHint()" placeholder="Вставьте скопированный текст"></textarea>
             <div id="importHint" style="font-size:11px; color:var(--primary-color); font-weight:600; min-height:14px; margin-bottom:8px;"></div>
-            <div class="field-label">На какую дату</div>
-            <select id="importDay" class="field" onchange="onImportDayChange()">
-                <option value="text">Как в дневнике (дата вкладки)</option>
-                <option value="auto">На ближайший урок предмета</option>
-                <option value="date">На выбранную дату</option>
-            </select>
-            <input type="date" id="importDate" class="field" style="display:none">
+            <div class="field-label">Какой вкладке дневника (какому дню) это соответствует</div>
+            <div id="importDayChips" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;"></div>
+            <div class="field-label">или другая дата</div>
+            <input type="date" id="importDate" class="field" onchange="pickImportDate(this.value)">
             <div class="field-label">Предмет — только для строк без названия («стр. 5, упр. 3»)</div>
             <select id="importSubject" class="field" onchange="updateImportHint()"></select>
             <button class="btn-primary" onclick="parseAndImport()">Разобрать</button>
@@ -215,7 +250,8 @@
 <div class="modal" id="editModal" onclick="if(event.target===this) closeEditModal()">
     <div class="modal-body">
         <div class="modal-title">Изменить задание</div>
-        <div class="field-label" id="editSubjectLabel"></div>
+        <div class="field-label">Предмет (можно перенести в другой)</div>
+        <select id="editSubject" class="field"></select>
         <input type="text" id="editText1" class="field" placeholder="Текст задания">
         <select id="editType1" class="field"></select>
         <div class="field-label">Дата</div>
@@ -272,7 +308,17 @@
     const MONTHS = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
     const TYPES = ['written', 'oral', 'memorize', 'read'];
 
-    const ALL_SUBJECTS = ['📐 Алгебра', '📐 Геометрия', '📖 Русский язык', '📚 Литература', '🇬🇧 Английский', '⚡ Физика', '🧬 Биология', '🌍 География', '🏛️ История', '💻 Информатика', '📊 Вероятность и статистика', '🎵 Музыка', '🎨 ИЗО', '🛠️ Труд (техн.)', '🏃 Физ-ра', '💬 Разговоры о важном', '🔔 Классный час'];
+    const ALL_SUBJECTS = ['📐 Алгебра', '📐 Геометрия', '📖 Русский язык', '📚 Литература', '🇬🇧 Английский', '⚡ Физика', '🧬 Биология', '🌍 География', '🏛️ История', '💻 Информатика', '📊 Вероятность и статистика', '🎵 Музыка', '🎨 ИЗО', '🛠️ Труд (техн.)', '🏃 Физ-ра', '💬 Разговоры о важном', '🔔 Классный час', '📖 Дополнительные главы русского языка', '📖 Комплексный анализ текста'];
+
+    // Короткие названия для сетки расписания
+    const SHORT_NAMES = {
+        '📐 Алгебра': 'Алгебра', '📐 Геометрия': 'Геометр.', '📖 Русский язык': 'Русский', '📚 Литература': 'Литер-ра',
+        '🇬🇧 Английский': 'Англ.', '⚡ Физика': 'Физика', '🧬 Биология': 'Биолог.', '🌍 География': 'Геогр.',
+        '🏛️ История': 'История', '💻 Информатика': 'Информ.', '📊 Вероятность и статистика': 'Вер. и стат.',
+        '🎵 Музыка': 'Музыка', '🎨 ИЗО': 'ИЗО', '🛠️ Труд (техн.)': 'Труд', '🏃 Физ-ра': 'Физ-ра',
+        '💬 Разговоры о важном': 'Разгов.', '🔔 Классный час': 'Кл. час',
+        '📖 Дополнительные главы русского языка': 'Доп. главы', '📖 Комплексный анализ текста': 'Компл. анализ'
+    };
 
     const scheduleTemplate = {
         mon: { name: 'Понедельник', lessons: [
@@ -310,20 +356,20 @@
             { num: 6, time: '13:35–14:15', name: '🇬🇧 Английский' }
         ]},
         fri: { name: 'Пятница', lessons: [
-            { num: 1, time: '8:50–9:30', name: '🏃 Физ-ра' },
             { num: 2, time: '9:45–10:25', name: '🌍 География' },
             { num: 3, time: '10:45–11:25', name: '📊 Вероятность и статистика' },
             { num: 4, time: '11:45–12:25', name: '🏛️ История' },
             { num: 5, time: '12:40–13:20', name: '🎨 ИЗО' },
             { num: 6, time: '13:35–14:15', name: '📐 Геометрия' },
-            { num: 7, time: '14:30–15:10', name: '🏃 Физ-ра' }
+            { num: 7, time: '14:30–15:10', name: '🏃 Физ-ра' },
+            { num: 8, time: '15:25–16:05', name: '🏃 Физ-ра' }
         ]},
         sat: { name: 'Суббота', lessons: [
             { num: 1, time: '8:50–9:30', name: '🇬🇧 Английский' },
             { num: 2, time: '9:45–10:25', name: '🧬 Биология' },
             { num: 3, time: '10:45–11:25', name: '⚡ Физика' },
-            { num: 4, time: '11:45–12:25', name: '📖 Русский язык' },
-            { num: 5, time: '12:40–13:20', name: '📚 Литература' }
+            { num: 4, time: '11:45–12:25', name: '📖 Дополнительные главы русского языка' },
+            { num: 5, time: '12:40–13:20', name: '📖 Комплексный анализ текста' }
         ]}
     };
 
@@ -358,7 +404,13 @@
     let weeksData = [];
     let loaded = false;
     let currentWeekStart = mondayISO(new Date());
-    let selectedDayId = null, currentFilter = 'all', currentTab = 'tasks', selectedTimetableDay = todayDayId();
+    let selectedDayId = 'mon', currentFilter = 'all', currentTab = 'tasks';
+    (function initDay() {   // открываем сегодняшний день; в воскресенье — понедельник следующей недели
+        const now = new Date();
+        const idx = (now.getDay() + 6) % 7;
+        if (idx > 5) { currentWeekStart = toISO(addDays(fromISO(mondayISO(now)), 7)); selectedDayId = 'mon'; }
+        else selectedDayId = DAY_IDS[idx];
+    })();
     let pendingConfirmAction = null;
     let editingTaskId = null;
 
@@ -411,6 +463,24 @@
         });
     }
 
+    // Суббота: «Русский язык» и «Литература» в этот день называются иначе
+    const SAT_RENAME = { '📖 Русский язык': '📖 Дополнительные главы русского языка', '📚 Литература': '📖 Комплексный анализ текста' };
+    function migrateSchedule() {
+        weeksData.forEach(w => {
+            const sat = w.days.find(d => d.id === 'sat');
+            if (!sat) return;
+            let changed = false;
+            sat.subjects.forEach(s => { if (SAT_RENAME[s.name]) { s.name = SAT_RENAME[s.name]; changed = true; } });
+            const byName = {};
+            sat.subjects = sat.subjects.filter(s => {
+                if (byName[s.name]) { byName[s.name].tasks = byName[s.name].tasks.concat(s.tasks); changed = true; return false; }
+                byName[s.name] = s;
+                return true;
+            });
+            if (changed) saveWeek(w);
+        });
+    }
+
     function findTask(taskId) {
         for (const w of weeksData) for (const d of w.days) for (const s of d.subjects) for (const t of s.tasks) {
             if (t.id === taskId) return { w: w, d: d, s: s, t: t };
@@ -421,6 +491,7 @@
     db.ref(DB_PATH).on('value', snapshot => {
         const val = snapshot.val();
         weeksData = normalizeData(val);
+        migrateSchedule();
         loaded = true;
 
         // Всегда должны существовать текущая и следующая недели
@@ -464,10 +535,14 @@
         const diffWeeks = Math.round((target - cur) / (7 * 24 * 3600 * 1000));
         if (Math.abs(diffWeeks) > 12) return;
         currentWeekStart = toISO(target);
-        selectedDayId = null;
         render();
     }
-    function goToCurrentWeek() { currentWeekStart = mondayISO(new Date()); selectedDayId = null; render(); }
+    function goToCurrentWeek() {
+        currentWeekStart = mondayISO(new Date());
+        const i = (new Date().getDay() + 6) % 7;
+        if (i <= 5) selectedDayId = DAY_IDS[i];
+        render();
+    }
 
     function switchTab(tab) {
         currentTab = tab;
@@ -476,13 +551,34 @@
         document.getElementById('filtersBlock').style.display = (tab === 'tasks') ? 'flex' : 'none';
         render();
     }
-    function openDay(id) { selectedDayId = id; render(); document.getElementById('contentArea').scrollTop = 0; }
-    function backToDays() { selectedDayId = null; render(); document.getElementById('contentArea').scrollTop = 0; }
-    function setTTDay(id) { selectedTimetableDay = id; render(); }
-    function openLesson(i) {
-        const l = scheduleTemplate[selectedTimetableDay].lessons[i];
-        if (l) openAddModal(l.name, selectedTimetableDay);
+    function selectDay(id) {
+        selectedDayId = id;
+        render();
+        document.getElementById('contentArea').scrollTop = 0;
     }
+    // Листаем по дням (через границу недели тоже)
+    function shiftDay(dir) {
+        let i = DAY_IDS.indexOf(selectedDayId) + dir;
+        let ws = currentWeekStart;
+        if (i < 0) { ws = toISO(addDays(fromISO(ws), -7)); i = 5; }
+        else if (i > 5) { ws = toISO(addDays(fromISO(ws), 7)); i = 0; }
+        const cur = fromISO(mondayISO(new Date()));
+        if (Math.abs(Math.round((fromISO(ws) - cur) / (7 * 24 * 3600 * 1000))) > 12) return;
+        currentWeekStart = ws;
+        selectedDayId = DAY_IDS[i];
+        render();
+        document.getElementById('contentArea').scrollTop = 0;
+    }
+    function openDayFromGrid(id) {
+        selectedDayId = id;
+        switchTab('tasks');
+        document.getElementById('contentArea').scrollTop = 0;
+    }
+    function openAddForIndex(i) {
+        const e = viewEntries[i];
+        if (e) openAddModal(e.name, selectedDayId);
+    }
+
     function setFilter(filter, el) {
         currentFilter = filter;
         document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
@@ -505,57 +601,90 @@
     }
 
     // ================== Отрисовка ==================
+    let viewEntries = [];   // предметы выбранного дня на экране (для кнопок ➕)
+
+    // Предметы дня: сначала по расписанию (в порядке уроков), затем «лишние» предметы, по которым есть задания
+    function daySubjects(week, dayId) {
+        const day = week.days.find(d => d.id === dayId);
+        const stored = day ? day.subjects : [];
+        const out = [];
+        (scheduleTemplate[dayId] ? scheduleTemplate[dayId].lessons : []).forEach(l => {
+            let e = out.find(x => x.name === l.name);
+            if (!e) {
+                const s = stored.find(x => x.name === l.name);
+                e = { name: l.name, nums: [], time: l.time, tasks: s ? s.tasks : [] };
+                out.push(e);
+            }
+            e.nums.push(l.num);
+        });
+        stored.forEach(s => {
+            if (s.tasks.length > 0 && !out.find(x => x.name === s.name)) out.push({ name: s.name, nums: [], time: '', tasks: s.tasks });
+        });
+        return out;
+    }
+
+    // Итог считается по предметам: предмет выполнен, когда выполнены все его задания
+    function dayProgress(entries) {
+        let total = 0, done = 0;
+        entries.forEach(e => {
+            if (e.tasks.length === 0) return;
+            total++;
+            if (e.tasks.every(t => t.done)) done++;
+        });
+        return { total: total, done: done };
+    }
+
     function render() {
         document.getElementById('weekLabel').textContent = weekLabel(currentWeekStart);
         const container = document.getElementById('contentArea');
-
-        if (!loaded) { container.innerHTML = '<div class="empty">Загрузка…</div>'; return; }
-
-        if (currentTab === 'timetable') { renderTimetable(container); return; }
-
+        const strip = document.getElementById('dayStrip');
+        if (!loaded) { strip.style.display = 'none'; container.innerHTML = '<div class="empty">Загрузка…</div>'; return; }
         const week = getWeek(currentWeekStart);
+        if (currentTab === 'timetable') {
+            strip.style.display = 'none';
+            renderScheduleGrid(container, week);
+            return;
+        }
+        strip.style.display = 'flex';
+        renderTasksTab(container, strip, week);
+    }
+
+    // Вкладка «Домашка»: полоска дней сверху + предметы выбранного дня
+    function renderTasksTab(container, strip, week) {
         const weekStartDate = fromISO(week.start);
         const todayISO = toISO(new Date());
 
-        if (selectedDayId === null) {
-            let html = '';
-            week.days.forEach((day, i) => {
-                const date = addDays(weekStartDate, i);
-                let total = 0, doneCount = 0, pills = '';
-                day.subjects.forEach(sub => {
-                    if (sub.tasks.length > 0) pills += '<span class="subject-pill">' + esc(sub.name) + ' (' + sub.tasks.length + ')</span>';
-                    sub.tasks.forEach(t => { total++; if (t.done) doneCount++; });
-                });
-                const isAllDone = total > 0 && total === doneCount;
-                const isToday = toISO(date) === todayISO;
-                html += '<div class="day-summary-card' + (isToday ? ' today' : '') + '" onclick="openDay(\'' + esc(day.id) + '\')">' +
-                    '<div class="day-head"><span class="day-name">' + esc(day.name) + '<span class="day-date">' + fmtDay(date) + '</span></span>' +
-                    '<span class="badge-count' + (isAllDone ? ' done' : '') + '">' + (total === 0 ? 'Нет ДЗ' : doneCount + '/' + total + ' выполнено') + '</span></div>' +
-                    '<div class="subject-preview-list">' + (pills || '<span style="font-size:11px; color:#94a3b8;">Заданий нет</span>') + '</div></div>';
-            });
-            container.innerHTML = html;
-            return;
-        }
+        let stripHtml = '';
+        DAY_IDS.forEach((id, i) => {
+            const date = addDays(weekStartDate, i);
+            const p = dayProgress(daySubjects(week, id));
+            const mark = p.total === 0 ? '<span class="dm">&nbsp;</span>' : (p.done === p.total ? '<span class="dm ok">✓</span>' : '<span class="dm">●</span>');
+            stripHtml += '<button class="day-btn' + (id === selectedDayId ? ' active' : '') + (toISO(date) === todayISO ? ' today' : '') +
+                '" onclick="selectDay(\'' + id + '\')"><span>' + DAY_SHORT[id] + '</span><b>' + date.getDate() + '</b>' + mark + '</button>';
+        });
+        strip.innerHTML = stripHtml;
 
-        const dayIndex = week.days.findIndex(d => d.id === selectedDayId);
-        if (dayIndex < 0) { selectedDayId = null; render(); return; }
-        const day = week.days[dayIndex];
-        const dayDate = addDays(weekStartDate, dayIndex);
+        const dayIdx = DAY_IDS.indexOf(selectedDayId);
+        const dayDate = addDays(weekStartDate, dayIdx);
+        const entries = daySubjects(week, selectedDayId);
+        viewEntries = entries;
+        const p = dayProgress(entries);
 
-        let html = '<div class="detail-header"><button class="back-btn" onclick="backToDays()">◄ Назад</button>' +
-            '<div style="font-weight:bold; font-size:14px; margin-left:auto;">' + esc(day.name) + ', ' + fmtDay(dayDate) + '</div></div>';
-
-        if (day.subjects.length === 0) {
-            html += '<div class="empty">Все предметы удалены.<br>Добавьте задание кнопкой ➕ внизу.</div>';
-            container.innerHTML = html;
-            return;
-        }
+        let html = '<div class="day-title-row">' +
+            '<button class="week-nav-btn" onclick="shiftDay(-1)">◄</button>' +
+            '<div style="text-align:center; flex:1;"><div class="day-title">' + esc(DAY_NAMES[selectedDayId]) + ', ' + fmtDay(dayDate) +
+            (toISO(dayDate) === todayISO ? ' · сегодня' : '') + '</div>' +
+            '<span class="badge-count' + (p.total > 0 && p.done === p.total ? ' done' : '') + '">' +
+            (p.total === 0 ? 'Нет ДЗ' : 'выполнено ' + p.done + ' из ' + p.total + ' предметов') + '</span></div>' +
+            '<button class="week-nav-btn" onclick="shiftDay(1)">►</button></div>';
 
         let shown = 0;
-        day.subjects.forEach(sub => {
-            const tasks = sub.tasks.filter(passFilter);
+        entries.forEach((e, i) => {
+            const tasks = e.tasks.filter(passFilter);
             if (currentFilter !== 'all' && tasks.length === 0) return;
             shown++;
+            const empty = e.tasks.length === 0;
+            const allDone = !empty && e.tasks.every(t => t.done);
             let tasksHtml = '';
             tasks.forEach(task => {
                 const id = esc(task.id);
@@ -574,31 +703,74 @@
                     '<button class="btn-mini danger" onclick="askDeleteTaskItem(\'' + id + '\')">🗑️ Удалить</button>' +
                     '</div></div>';
             });
-            html += '<div class="subject-detail-group">' +
-                '<div class="subject-detail-title"><span>' + esc(sub.name) + '</span><div>' +
-                '<button class="btn-add-inline" onclick="openAddForSub(\'' + esc(day.id) + '\', \'' + esc(sub.id) + '\')">➕ Пункт</button>' +
-                '<button class="btn-delete-subject" onclick="askDeleteSubject(\'' + esc(sub.id) + '\')">🗑️</button>' +
-                '</div></div>' +
-                (tasksHtml || '<div style="font-size:11px; color:#94a3b8; padding:4px 0;">Заданий нет</div>') +
-                '</div>';
+            html += '<div class="subject-detail-group' + (allDone ? ' subj-done' : '') + (empty ? ' subj-empty' : '') + '">' +
+                '<div class="subject-detail-title"><div class="subj-left">' +
+                (e.nums.length ? '<span class="lesson-num">' + e.nums.join('·') + '</span>' : '') +
+                '<span>' + esc(e.name) + (allDone ? ' ✓' : '') + '</span></div>' +
+                '<div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">' +
+                (empty ? '<span class="no-tasks">нет ДЗ</span>' : (e.time ? '<span class="subj-time">' + esc(e.time.split('–')[0]) + '</span>' : '')) +
+                '<button class="btn-add-inline" style="margin-right:0;" onclick="openAddForIndex(' + i + ')">➕</button></div></div>' +
+                (empty ? '' : (tasksHtml || '<div class="no-tasks">По этому фильтру заданий нет</div>')) + '</div>';
         });
         if (shown === 0) html += '<div class="empty">По этому фильтру заданий нет</div>';
         container.innerHTML = html;
     }
 
-    function renderTimetable(container) {
-        let html = '<div style="display:flex; gap:4px; margin-bottom:12px; overflow-x:auto;">';
-        DAY_IDS.forEach(k => {
-            const active = k === selectedTimetableDay ? 'background:var(--primary-color); color:white;' : 'background:#e2e8f0; color:var(--text-main);';
-            html += '<button onclick="setTTDay(\'' + k + '\')" style="padding:8px 14px; border:none; border-radius:8px; font-size:12px; font-weight:bold; cursor:pointer; ' + active + '">' + DAY_SHORT[k] + '</button>';
+    // Вкладка «Расписание»: сетка на 6 дней, цветные точки — есть невыполненное задание этого типа
+    function renderScheduleGrid(container, week) {
+        const ws = fromISO(week.start);
+        const todayISO = toISO(new Date());
+        const maxNum = Math.max.apply(null, DAY_IDS.map(id => Math.max.apply(null, scheduleTemplate[id].lessons.map(l => l.num))));
+        const startTime = n => {
+            for (const id of DAY_IDS) {
+                const l = scheduleTemplate[id].lessons.find(x => x.num === n);
+                if (l) return l.time.split('–')[0];
+            }
+            return '';
+        };
+        const perDay = {};
+        DAY_IDS.forEach(id => { perDay[id] = daySubjects(week, id); });
+
+        let html = '<div class="sched-grid"><div></div>';
+        DAY_IDS.forEach((id, i) => {
+            const d = addDays(ws, i);
+            html += '<div class="g-head' + (toISO(d) === todayISO ? ' today' : '') + '" onclick="openDayFromGrid(\'' + id + '\')">' +
+                DAY_SHORT[id] + '<span>' + d.getDate() + '</span></div>';
         });
-        html += '</div><div style="font-weight:bold; font-size:13px; margin-bottom:8px; color:var(--text-sub);">Нажмите на урок, чтобы добавить ДЗ:</div>';
-        scheduleTemplate[selectedTimetableDay].lessons.forEach((l, i) => {
-            html += '<div class="timetable-card" onclick="openLesson(' + i + ')">' +
-                '<div class="lesson-num">' + l.num + '</div>' +
-                '<div class="lesson-title">' + esc(l.name) + '</div>' +
-                '<div class="lesson-time">' + esc(l.time) + '</div></div>';
-        });
+        for (let n = 1; n <= maxNum; n++) {
+            html += '<div class="g-num">' + n + '<small>' + esc(startTime(n)) + '</small></div>';
+            DAY_IDS.forEach(id => {
+                const l = scheduleTemplate[id].lessons.find(x => x.num === n);
+                if (!l) { html += '<div class="g-cell empty"></div>'; return; }
+                const entry = perDay[id].find(e => e.name === l.name);
+                const tasks = entry ? entry.tasks : [];
+                const open = tasks.filter(t => !t.done);
+                let mark = '';
+                if (tasks.length > 0 && open.length === 0) mark = '<span class="g-ok">✓</span>';
+                else if (open.length > 0) {
+                    mark = TYPES.filter(ty => open.some(t => safeType(t.type) === ty)).map(ty => '<i class="d-' + ty + '"></i>').join('');
+                }
+                const sp = l.name.indexOf(' ');
+                html += '<div class="g-cell has" onclick="openDayFromGrid(\'' + id + '\')">' +
+                    '<div class="g-ico">' + esc(l.name.slice(0, sp)) + '</div>' +
+                    '<div class="g-name">' + esc(SHORT_NAMES[l.name] || l.name.slice(sp + 1)) + '</div>' +
+                    '<div class="g-dots">' + mark + '</div></div>';
+            });
+        }
+        html += '</div>';
+
+        html += '<div class="legend">' +
+            '<span><i class="d-written"></i>Письменно</span><span><i class="d-oral"></i>Устно</span>' +
+            '<span><i class="d-memorize"></i>Наизусть</span><span><i class="d-read"></i>Прочитать</span>' +
+            '<span><b style="color:#16a34a;">✓</b> всё выполнено</span></div>';
+
+        let extra = '';
+        DAY_IDS.forEach(id => perDay[id].filter(e => e.nums.length === 0).forEach(e => {
+            extra += '<span class="subject-pill" style="cursor:pointer;" onclick="openDayFromGrid(\'' + id + '\')">' +
+                DAY_SHORT[id] + ': ' + esc(e.name) + ' (' + e.tasks.length + ')</span> ';
+        }));
+        if (extra) html += '<div class="field-label" style="margin-top:8px;">Не по расписанию</div><div class="subject-preview-list">' + extra + '</div>';
+
         container.innerHTML = html;
     }
 
@@ -734,11 +906,12 @@
         sub.tasks.push(task);
         toSave.add(week);
     }
-    function moveTaskTo(f, place, toSave) {
-        if (place.weekStart === f.w.start && place.dayId === f.d.id) return false;
+    function moveTaskTo(f, place, toSave, subjName) {
+        const target = subjName || f.s.name;
+        if (place.weekStart === f.w.start && place.dayId === f.d.id && target === f.s.name) return false;
         f.s.tasks = f.s.tasks.filter(t => t.id !== f.t.id);
         toSave.add(f.w);
-        addTaskToPlace(f.s.name, f.t, place, toSave);
+        addTaskToPlace(target, f.t, place, toSave);
         return true;
     }
 
@@ -770,7 +943,11 @@
         if (!f) return;
         editingTaskId = taskId;
         splitBackup = null;
-        document.getElementById('editSubjectLabel').textContent = 'Предмет: ' + f.s.name;
+        const subjSel = document.getElementById('editSubject');
+        const names = ALL_SUBJECTS.slice();
+        if (!names.includes(f.s.name)) names.push(f.s.name);
+        subjSel.innerHTML = names.map(s => '<option value="' + esc(s) + '">' + esc(s) + '</option>').join('');
+        subjSel.value = f.s.name;
         document.getElementById('editText1').classList.remove('error');
         document.getElementById('editText2').classList.remove('error');
         document.getElementById('editText1').value = f.t.text;
@@ -833,10 +1010,11 @@
         const toSave = new Set([f.w]);
         f.t.text = text1;
         f.t.type = document.getElementById('editType1').value;
-        moveTaskTo(f, place1, toSave);
+        const targetSubj = document.getElementById('editSubject').value || f.s.name;
+        moveTaskTo(f, place1, toSave, targetSubj);
         if (splitOn) {
             const second = { id: uid('t'), text: text2, type: document.getElementById('editType2').value, done: false, important: !!f.t.important };
-            addTaskToPlace(f.s.name, second, place2, toSave);
+            addTaskToPlace(targetSubj, second, place2, toSave);
         }
         toSave.forEach(saveWeek);
         closeEditModal();
@@ -888,20 +1066,56 @@
     const WD_ABBR = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
     let importItems = [];   // распознанные задания: { subject, canon, text, type, place, selected }
 
+    let importDueISO = null;   // выбранный день (как вкладка в дневнике)
+    let importAuto = false;    // «Авто»: каждое задание на ближайший урок своего предмета
+
+    function importChipDays() {   // сегодня и ближайшие учебные дни — как вкладки в дневнике
+        const out = [], t = new Date();
+        for (let i = 0; i < 14 && out.length < 7; i++) {
+            const d = addDays(t, i);
+            if ((d.getDay() + 6) % 7 <= 5) out.push(d);
+        }
+        return out;
+    }
+    function renderImportChips() {
+        let html = '';
+        importChipDays().forEach(d => {
+            const iso = toISO(d);
+            const label = DAY_SHORT[DAY_IDS[(d.getDay() + 6) % 7]] + ' ' + d.getDate();
+            html += '<div class="chip' + (!importAuto && importDueISO === iso ? ' active' : '') +
+                '" style="padding:8px 12px; font-size:12px;" onclick="pickImportDay(\'' + iso + '\')">' + label + '</div>';
+        });
+        html += '<div class="chip' + (importAuto ? ' active' : '') +
+            '" style="padding:8px 12px; font-size:12px;" onclick="pickImportAuto()">🔎 Авто</div>';
+        document.getElementById('importDayChips').innerHTML = html;
+    }
+    function pickImportDay(iso) {
+        importDueISO = iso; importAuto = false;
+        document.getElementById('importDate').value = iso;
+        renderImportChips(); updateImportHint();
+    }
+    function pickImportDate(iso) {
+        importDueISO = iso || null; importAuto = false;
+        renderImportChips(); updateImportHint();
+    }
+    function pickImportAuto() {
+        importAuto = true; importDueISO = null;
+        document.getElementById('importDate').value = '';
+        renderImportChips(); updateImportHint();
+    }
+
     function openImportModal() {
-        document.getElementById('importDate').value = nextSchoolDayISO();
+        importDueISO = null; importAuto = false;
+        document.getElementById('importDate').value = '';
         document.getElementById('importHint').textContent = '';
+        renderImportChips();
         importBack();
-        onImportDayChange();
         document.getElementById('importModal').classList.add('active');
     }
     function closeImportModal() { document.getElementById('importModal').classList.remove('active'); }
     function importBack() {
         document.getElementById('importStep1').style.display = '';
         document.getElementById('importStep2').style.display = 'none';
-    }
-    function onImportDayChange() {
-        document.getElementById('importDate').style.display = document.getElementById('importDay').value === 'date' ? '' : 'none';
     }
 
     function matchSubject(name) {
@@ -976,9 +1190,11 @@
     }
 
     const STATUS_RE = /^(задано|выполнено|проверено)$/i;
-    const DATE_END_RE = /^(.*?)\s*(\d{1,2}\.\d{2}\.\d{4})$/;
+    const DATE_ONLY_RE = /^\d{1,2}\.\d{2}\.\d{4}$/;
+    const DATE_END_RE = /^(.*?)\s*\d{1,2}\.\d{2}\.\d{4}$/;
 
-    // Текст экрана «Домашнее задание»: карточки «Предмет + дата выдачи / задано / текст»
+    // Текст экрана «Домашнее задание»: карточки «Предмет [дата выдачи] / задано / текст».
+    // Опора — слово «задано»: над ним всегда стоит предмет (дата выдачи может быть, а может отсутствовать).
     function parseDiaryText(raw) {
         let lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
         // отрезаем рекламу внизу экрана
@@ -995,35 +1211,26 @@
             !monthRe.test(l) &&
             !/^[а-яёa-z]$/i.test(l));
 
-        const cards = [];
-        let cur = null;
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const next = lines[i + 1] || '';
-            const dm = line.match(DATE_END_RE);
-            if (dm && STATUS_RE.test(next)) {
-                let subject = dm[1].trim();
-                if (!subject) {   // название стояло отдельной строкой над датой
-                    subject = i > 0 ? lines[i - 1] : '';
-                    if (cur && cur.body.length && cur.body[cur.body.length - 1] === subject) cur.body.pop();
-                }
-                cur = { subject: subject || 'Общие', body: [] };
-                cards.push(cur);
-                i++;   // пропускаем строку «задано»
-            } else if (STATUS_RE.test(line)) {
-                continue;
-            } else if (cur) {
-                cur.body.push(line);
-            }
-        }
+        const heads = [];   // { subject, start (строка предмета), status (строка «задано») }
+        lines.forEach((l, k) => {
+            if (!STATUS_RE.test(l)) return;
+            let j = k - 1;
+            if (j >= 0 && DATE_ONLY_RE.test(lines[j])) j--;      // дата стоит отдельной строкой
+            if (j < 0) return;
+            const dm = lines[j].match(DATE_END_RE);              // «Биология 15.09.2026» в одной строке
+            const subject = (dm ? dm[1] : lines[j]).trim();
+            if (!subject) return;
+            heads.push({ subject: subject, start: j, status: k });
+        });
 
         const items = [];
-        cards.forEach(card => {
-            const text = card.body.join(' ').replace(/\s+/g, ' ').trim();
+        heads.forEach((h, i) => {
+            const end = i + 1 < heads.length ? heads[i + 1].start : lines.length;
+            const text = lines.slice(h.status + 1, end).join(' ').replace(/\s+/g, ' ').trim();
             if (!text) return;
-            const canon = matchSubject(card.subject);
+            const canon = matchSubject(h.subject);
             splitNumbered(text).forEach(part => items.push({
-                subject: canon || ('📖 ' + card.subject), canon: canon, text: part, type: detectType(part)
+                subject: canon || ('📖 ' + h.subject), canon: canon, text: part, type: detectType(part)
             }));
         });
         return { items: items, dueISO: detectDueDate(raw) };
@@ -1066,10 +1273,13 @@
         if (!document.getElementById('peshRawText').value.trim()) { hint.textContent = ''; return; }
         const a = analyzeImport();
         let text = 'Распознано заданий: ' + a.items.length;
-        if (a.isDiary) {
-            const place = placeFor(a.dueISO);
-            text += place ? ' · день в дневнике: ' + placeLabel(place) : ' · дата вкладки не найдена';
-        }
+        const textPlace = a.isDiary ? placeFor(a.dueISO) : null;
+        if (importAuto) text += ' · каждое — на ближайший урок предмета';
+        else if (importDueISO) {
+            const p = placeFor(importDueISO);
+            text += p ? ' · день: ' + placeLabel(p) : ' · воскресенье — выберите другой день';
+        } else if (textPlace) text += ' · день из текста: ' + placeLabel(textPlace);
+        else text += ' · выберите день вкладки ниже';
         hint.textContent = text;
     }
 
@@ -1079,13 +1289,12 @@
         if (!a.raw.trim()) return;
         if (a.items.length === 0) { showToast('Не нашёл заданий в тексте'); return; }
 
-        const mode = document.getElementById('importDay').value;   // 'text' | 'auto' | 'date'
         let fixed = null;
-        if (mode === 'date') {
-            fixed = placeOrToast(document.getElementById('importDate').value);
+        if (!importAuto) {
+            const iso = importDueISO || a.dueISO;
+            if (!iso) { showToast('Выберите день, как на вкладке дневника'); return; }
+            fixed = placeOrToast(iso);
             if (!fixed) return;
-        } else if (mode === 'text') {
-            fixed = placeFor(a.dueISO);   // если даты нет — ниже возьмём ближайший урок предмета
         }
 
         importItems = a.items.map(it => {
@@ -1138,7 +1347,7 @@
             const first = sel[0].place;
             const samePlace = sel.every(it => it.place.weekStart === first.weekStart && it.place.dayId === first.dayId);
             currentWeekStart = first.weekStart;
-            selectedDayId = samePlace ? first.dayId : null;
+            selectedDayId = first.dayId;
             currentTab = 'tasks';
             switchTab('tasks');
         }
@@ -1153,6 +1362,21 @@
             '<option value="auto">Определить по тексту («Предмет: задание»)</option>' +
             ALL_SUBJECTS.map(s => '<option value="' + esc(s) + '">' + esc(s) + '</option>').join('');
     }
+    (function initSwipe() {
+        const area = document.getElementById('contentArea');
+        let sx = 0, sy = 0, tracking = false;
+        area.addEventListener('touchstart', e => {
+            if (e.touches.length !== 1) return;
+            sx = e.touches[0].clientX; sy = e.touches[0].clientY; tracking = true;
+        }, { passive: true });
+        area.addEventListener('touchend', e => {
+            if (!tracking || currentTab !== 'tasks') return;
+            tracking = false;
+            const t = e.changedTouches[0];
+            const dx = t.clientX - sx, dy = t.clientY - sy;
+            if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.5) shiftDay(dx < 0 ? 1 : -1);
+        }, { passive: true });
+    })();
     initSelects();
 
     render();
