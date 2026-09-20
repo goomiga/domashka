@@ -151,6 +151,10 @@
         .d-read { background: var(--color-read); }
         .g-ok { color: #16a34a; font-size: 11px; font-weight: 700; line-height: 10px; }
         .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 11px; color: var(--text-sub); margin: 10px 2px; }
+        .star.static { cursor: default; }
+        #modeBadge { color: var(--primary-color); }
+        .pin-input { text-align: center; letter-spacing: 8px; font-size: 22px; }
+        .pin-error { color: #ef4444; font-size: 12px; min-height: 16px; margin-bottom: 8px; }
         .toast { position: absolute; left: 50%; bottom: 76px; transform: translateX(-50%); background: #1f2937; color: #fff; padding: 8px 14px; border-radius: 20px; font-size: 12px; z-index: 200; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
         .toast.show { opacity: 1; }
     </style>
@@ -158,7 +162,7 @@
 <body>
 <div class="phone-frame">
     <div class="phone-header">
-        <div class="sync-status off" id="syncStatus"><span class="sync-dot"></span><span id="syncText">Подключение…</span></div>
+        <div class="sync-status off" id="syncStatus"><span class="sync-dot"></span><span id="syncText">Подключение…</span><span id="modeBadge"></span></div>
         <div class="week-switcher">
             <button class="week-nav-btn" onclick="changeWeek(-1)">◄</button>
             <div class="week-label" id="weekLabel" onclick="goToCurrentWeek()" title="Нажмите, чтобы вернуться к этой неделе">…</div>
@@ -184,11 +188,14 @@
         <button class="nav-item" id="navTimetable" onclick="switchTab('timetable')">
             <span class="nav-icon">📅</span><span>Расписание</span>
         </button>
-        <button class="nav-item" onclick="openImportModal()">
+        <button class="nav-item" id="navImport" onclick="openImportModal()">
             <span class="nav-icon">🔄</span><span>Импорт ПЭШ</span>
         </button>
-        <button class="nav-item" onclick="openAddModal()">
+        <button class="nav-item" id="navAdd" onclick="openAddModal()">
             <span class="nav-icon">➕</span><span>Добавить</span>
+        </button>
+        <button class="nav-item" id="navLock" onclick="onLockButton()">
+            <span class="nav-icon" id="navLockIcon">🔒</span><span id="navLockText">Изменять</span>
         </button>
     </div>
 
@@ -284,6 +291,36 @@
     </div>
 </div>
 
+<!-- Модальное окно: PIN-код -->
+<div class="modal" id="pinModal" onclick="if(event.target===this) closePinModal()">
+    <div class="modal-body">
+        <div class="modal-title" id="pinTitle">Введите PIN-код</div>
+        <div class="field-label" id="pinLbl1"></div>
+        <input type="password" inputmode="numeric" autocomplete="off" maxlength="8" id="pinIn1" class="field pin-input">
+        <div id="pinRow2">
+            <div class="field-label" id="pinLbl2"></div>
+            <input type="password" inputmode="numeric" autocomplete="off" maxlength="8" id="pinIn2" class="field pin-input">
+        </div>
+        <div id="pinRow3">
+            <div class="field-label" id="pinLbl3"></div>
+            <input type="password" inputmode="numeric" autocomplete="off" maxlength="8" id="pinIn3" class="field pin-input">
+        </div>
+        <div class="pin-error" id="pinError"></div>
+        <button class="btn-primary" onclick="submitPin()">ОК</button>
+        <button class="btn-secondary" onclick="closePinModal()">Отмена</button>
+    </div>
+</div>
+
+<!-- Модальное окно: меню режима редактирования -->
+<div class="modal" id="lockMenuModal" onclick="if(event.target===this) closeLockMenu()">
+    <div class="modal-body">
+        <div class="modal-title">Режим редактирования включён</div>
+        <button class="btn-primary" onclick="lockNow()">🔒 Заблокировать сейчас</button>
+        <button class="btn-quick" onclick="openPinModal('change')">🔑 Сменить PIN-код</button>
+        <button class="btn-secondary" onclick="closeLockMenu()">Закрыть</button>
+    </div>
+</div>
+
 <!-- Модальное окно: Подтверждение удаления -->
 <div class="modal" id="confirmModal" onclick="if(event.target===this) closeConfirmModal()">
     <div class="modal-body">
@@ -362,7 +399,7 @@
             { num: 5, time: '12:40–13:20', name: '🎨 ИЗО' },
             { num: 6, time: '13:35–14:15', name: '📐 Геометрия' },
             { num: 7, time: '14:30–15:10', name: '🏃 Физ-ра' },
-            { num: 8, time: '15:25–16:05', name: '🏃 Физ-ра' }
+            { num: 8, time: '15:20–16:00', name: '🏃 Физ-ра' }
         ]},
         sat: { name: 'Суббота', lessons: [
             { num: 1, time: '8:50–9:30', name: '🇬🇧 Английский' },
@@ -490,6 +527,7 @@
 
     db.ref(DB_PATH).on('value', snapshot => {
         const val = snapshot.val();
+        pinData = (val && val.settings && val.settings.pinHash && val.settings.pinSalt) ? val.settings : null;
         weeksData = normalizeData(val);
         migrateSchedule();
         loaded = true;
@@ -600,6 +638,155 @@
         }
     }
 
+    // ================== Режим редактирования (PIN) ==================
+    // По умолчанию у всех только галочки. Изменения включаются PIN-кодом на 15 минут после последнего действия.
+    // PIN хранится в базе (в виде хэша), поэтому он один для всех телефонов.
+    const UNLOCK_MINUTES = 15;
+    let pinData = null;            // { pinHash, pinSalt }
+    let unlockedUntil = 0;
+    let pinMode = 'enter';         // 'enter' | 'set' | 'change'
+    let pinFails = 0, pinBlockedUntil = 0;
+    try { unlockedUntil = parseInt(localStorage.getItem('domashka_unlock_until') || '0', 10) || 0; } catch (e) { unlockedUntil = 0; }
+    let lastUnlocked = Date.now() < unlockedUntil;
+
+    function isEditUnlocked() { return Date.now() < unlockedUntil; }
+    function setUnlockedUntil(ts) {
+        unlockedUntil = ts;
+        try { localStorage.setItem('domashka_unlock_until', String(ts)); } catch (e) { /* ничего */ }
+    }
+    function touchUnlock() { if (isEditUnlocked()) setUnlockedUntil(Date.now() + UNLOCK_MINUTES * 60000); }
+    function needEdit() {
+        if (isEditUnlocked()) { touchUnlock(); return true; }
+        showToast('Для изменений нужен PIN — кнопка 🔒 внизу');
+        return false;
+    }
+
+    function updateModeUI() {
+        const on = isEditUnlocked();
+        document.getElementById('navImport').style.display = on ? '' : 'none';
+        document.getElementById('navAdd').style.display = on ? '' : 'none';
+        document.getElementById('navLockIcon').textContent = on ? '🔓' : '🔒';
+        document.getElementById('navLockText').textContent = on ? 'Режим' : 'Изменять';
+        document.getElementById('modeBadge').textContent = on ? ' · ✏️ редактирование' : '';
+    }
+
+    function closeAllEditModals() { closeAddModal(); closeEditModal(); closeMoveModal(); closeImportModal(); }
+
+    function sha256hex(s) {
+        if (window.crypto && window.crypto.subtle && window.TextEncoder) {
+            return window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)).then(buf =>
+                Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join(''));
+        }
+        let h = 5381;   // запасной вариант, если браузер не поддерживает crypto
+        for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+        return Promise.resolve('x' + (h >>> 0).toString(16));
+    }
+    async function checkPin(pin) {
+        if (!pinData) return false;
+        return (await sha256hex(pinData.pinSalt + pin)) === pinData.pinHash;
+    }
+    async function savePin(pin) {
+        const salt = uid('salt');
+        const data = { pinHash: await sha256hex(salt + pin), pinSalt: salt };
+        await db.ref(DB_PATH + '/settings').set(data);
+        pinData = data;
+    }
+
+    function onLockButton() {
+        if (isEditUnlocked()) { document.getElementById('lockMenuModal').classList.add('active'); return; }
+        openPinModal(pinData ? 'enter' : 'set');
+    }
+    function closeLockMenu() { document.getElementById('lockMenuModal').classList.remove('active'); }
+    function lockNow() {
+        setUnlockedUntil(0);
+        lastUnlocked = false;
+        closeLockMenu();
+        closeAllEditModals();
+        render();
+        showToast('Редактирование закрыто');
+    }
+    function unlockEditing() {
+        setUnlockedUntil(Date.now() + UNLOCK_MINUTES * 60000);
+        lastUnlocked = true;
+        closePinModal();
+        render();
+        showToast('Редактирование включено');
+    }
+
+    function openPinModal(mode) {
+        closeLockMenu();
+        pinMode = mode;
+        const cfg = {
+            enter:  { title: 'Введите PIN-код', l1: 'PIN-код', l2: '', l3: '' },
+            set:    { title: 'Придумайте PIN-код для редактирования', l1: 'Новый PIN (4–8 цифр)', l2: 'Повторите PIN', l3: '' },
+            change: { title: 'Смена PIN-кода', l1: 'Текущий PIN', l2: 'Новый PIN (4–8 цифр)', l3: 'Повторите новый PIN' }
+        }[mode];
+        document.getElementById('pinTitle').textContent = cfg.title;
+        [1, 2, 3].forEach(n => {
+            document.getElementById('pinLbl' + n).textContent = cfg['l' + n];
+            document.getElementById('pinIn' + n).value = '';
+        });
+        document.getElementById('pinRow2').style.display = cfg.l2 ? '' : 'none';
+        document.getElementById('pinRow3').style.display = cfg.l3 ? '' : 'none';
+        document.getElementById('pinError').textContent = '';
+        document.getElementById('pinModal').classList.add('active');
+        setTimeout(() => document.getElementById('pinIn1').focus(), 50);
+    }
+    function closePinModal() {
+        document.getElementById('pinModal').classList.remove('active');
+        [1, 2, 3].forEach(n => { document.getElementById('pinIn' + n).value = ''; });
+    }
+
+    async function submitPin() {
+        const v1 = document.getElementById('pinIn1').value.trim();
+        const v2 = document.getElementById('pinIn2').value.trim();
+        const v3 = document.getElementById('pinIn3').value.trim();
+        const err = msg => { document.getElementById('pinError').textContent = msg; };
+        const validPin = p => /^\d{4,8}$/.test(p);
+        const fail = () => {
+            pinFails++;
+            if (pinFails >= 5) { pinFails = 0; pinBlockedUntil = Date.now() + 60000; err('Слишком много попыток. Подождите минуту.'); }
+            else err('Неверный PIN');
+        };
+        if (Date.now() < pinBlockedUntil) { err('Слишком много попыток. Подождите минуту.'); return; }
+        try {
+            if (pinMode === 'set') {
+                if (!validPin(v1)) { err('PIN — от 4 до 8 цифр'); return; }
+                if (v1 !== v2) { err('PIN-коды не совпадают'); return; }
+                await savePin(v1);
+                unlockEditing();
+            } else if (pinMode === 'enter') {
+                if (!(await checkPin(v1))) { fail(); return; }
+                pinFails = 0;
+                unlockEditing();
+            } else {
+                if (!(await checkPin(v1))) { fail(); return; }
+                if (!validPin(v2)) { err('Новый PIN — от 4 до 8 цифр'); return; }
+                if (v2 !== v3) { err('Новые PIN-коды не совпадают'); return; }
+                await savePin(v2);
+                closePinModal();
+                showToast('PIN-код изменён');
+            }
+        } catch (e) {
+            console.error(e);
+            err('Не удалось сохранить PIN (нет связи с базой?)');
+        }
+    }
+
+    // Когда время режима вышло — закрываем окна и скрываем кнопки изменения
+    setInterval(() => {
+        const on = isEditUnlocked();
+        if (on !== lastUnlocked) {
+            lastUnlocked = on;
+            if (!on) closeAllEditModals();
+            render();
+        }
+    }, 15000);
+
+    ['pinIn1', 'pinIn2', 'pinIn3'].forEach(id => {
+        document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') submitPin(); });
+    });
+
     // ================== Отрисовка ==================
     let viewEntries = [];   // предметы выбранного дня на экране (для кнопок ➕)
 
@@ -635,6 +822,7 @@
     }
 
     function render() {
+        updateModeUI();
         document.getElementById('weekLabel').textContent = weekLabel(currentWeekStart);
         const container = document.getElementById('contentArea');
         const strip = document.getElementById('dayStrip');
@@ -651,6 +839,7 @@
 
     // Вкладка «Домашка»: полоска дней сверху + предметы выбранного дня
     function renderTasksTab(container, strip, week) {
+        const canEdit = isEditUnlocked();
         const weekStartDate = fromISO(week.start);
         const todayISO = toISO(new Date());
 
@@ -695,13 +884,18 @@
                     '<div class="checkbox' + (task.done ? ' checked' : '') + '" onclick="toggleTask(\'' + id + '\')"></div>' +
                     '<span class="task-tag tag-' + type + '">' + getTypeTag(type) + '</span>' +
                     '<div class="subtask-text' + (task.done ? ' completed' : '') + '">' + esc(task.text) + '</div>' +
-                    '<span class="star" onclick="toggleImportant(\'' + id + '\')">' + (task.important ? '⭐️' : '☆') + '</span>' +
+                    (canEdit
+                        ? '<span class="star" onclick="toggleImportant(\'' + id + '\')">' + (task.important ? '⭐️' : '☆') + '</span>'
+                        : (task.important ? '<span class="star static">⭐️</span>' : '')) +
                     '</div>' +
-                    '<div class="task-actions">' +
-                    '<button class="btn-mini" onclick="openMoveModal(\'' + id + '\')">📅 Перенести</button>' +
-                    '<button class="btn-mini" onclick="openEditModal(\'' + id + '\')">✏️ Изменить</button>' +
-                    '<button class="btn-mini danger" onclick="askDeleteTaskItem(\'' + id + '\')">🗑️ Удалить</button>' +
-                    '</div></div>';
+                    (canEdit
+                        ? '<div class="task-actions">' +
+                          '<button class="btn-mini" onclick="openMoveModal(\'' + id + '\')">📅 Перенести</button>' +
+                          '<button class="btn-mini" onclick="openEditModal(\'' + id + '\')">✏️ Изменить</button>' +
+                          '<button class="btn-mini danger" onclick="askDeleteTaskItem(\'' + id + '\')">🗑️ Удалить</button>' +
+                          '</div>'
+                        : '') +
+                    '</div>';
             });
             html += '<div class="subject-detail-group' + (allDone ? ' subj-done' : '') + (empty ? ' subj-empty' : '') + '">' +
                 '<div class="subject-detail-title"><div class="subj-left">' +
@@ -709,7 +903,7 @@
                 '<span>' + esc(e.name) + (allDone ? ' ✓' : '') + '</span></div>' +
                 '<div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">' +
                 (empty ? '<span class="no-tasks">нет ДЗ</span>' : (e.time ? '<span class="subj-time">' + esc(e.time.split('–')[0]) + '</span>' : '')) +
-                '<button class="btn-add-inline" style="margin-right:0;" onclick="openAddForIndex(' + i + ')">➕</button></div></div>' +
+                (canEdit ? '<button class="btn-add-inline" style="margin-right:0;" onclick="openAddForIndex(' + i + ')">➕</button>' : '') + '</div></div>' +
                 (empty ? '' : (tasksHtml || '<div class="no-tasks">По этому фильтру заданий нет</div>')) + '</div>';
         });
         if (shown === 0) html += '<div class="empty">По этому фильтру заданий нет</div>';
@@ -784,6 +978,7 @@
     }
 
     function toggleImportant(taskId) {
+        if (!needEdit()) return;
         const f = findTask(taskId);
         if (!f) return;
         f.t.important = !f.t.important;
@@ -793,6 +988,7 @@
 
     // ---- удаление ----
     function askDeleteTaskItem(taskId) {
+        if (!needEdit()) return;
         openConfirmModal('Удаление пункта', 'Удалить этот пункт задания?', () => {
             const f = findTask(taskId);
             if (!f) return;
@@ -832,6 +1028,7 @@
 
     // ---- добавление / редактирование ----
     function openAddModal(presetSubject, presetDay) {
+        if (!needEdit()) return;
         editingTaskId = null;
         document.getElementById('modalTitleText').textContent = 'Добавить задание';
         document.getElementById('addSubjectSelect').style.display = '';
@@ -921,6 +1118,7 @@
     }
 
     function saveTaskForm() {
+        if (!needEdit()) return;
         const input = document.getElementById('addTaskText');
         const text = input.value.trim();
         if (!text) { input.classList.add('error'); input.focus(); return; }
@@ -939,6 +1137,7 @@
 
     // ---- изменение задания: текст, тип, дата, разделение на 2 пункта ----
     function openEditModal(taskId) {
+        if (!needEdit()) return;
         const f = findTask(taskId);
         if (!f) return;
         editingTaskId = taskId;
@@ -987,6 +1186,7 @@
     }
 
     function saveEdit() {
+        if (!needEdit()) return;
         const f = findTask(editingTaskId);
         if (!f) { closeEditModal(); return; }
         const t1 = document.getElementById('editText1');
@@ -1024,6 +1224,7 @@
 
     // ---- перенос задания ----
     function openMoveModal(taskId) {
+        if (!needEdit()) return;
         const f = findTask(taskId);
         if (!f) return;
         movingTaskId = taskId;
@@ -1036,6 +1237,7 @@
         movingTaskId = null;
     }
     function quickMove(kind) {
+        if (!needEdit()) return;
         const f = findTask(movingTaskId);
         if (!f) { closeMoveModal(); return; }
         const taskDate = taskDateOf(f);
@@ -1105,6 +1307,7 @@
     }
 
     function openImportModal() {
+        if (!needEdit()) return;
         importDueISO = null; importAuto = false;
         document.getElementById('importDate').value = '';
         document.getElementById('importHint').textContent = '';
@@ -1324,6 +1527,7 @@
 
     // Шаг 2: добавляем выбранное
     function commitImport() {
+        if (!needEdit()) return;
         const sel = importItems.filter(it => it.selected);
         if (!sel.length) { showToast('Ничего не выбрано'); return; }
         const toSave = new Set();
