@@ -3,11 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#4a6da7">
+    <meta name="theme-color" content="#c9508a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Домашка">
     <title>Домашка</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap&subset=cyrillic" rel="stylesheet">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
     <!-- Firebase Cloud SDKs -->
@@ -16,16 +19,17 @@
 
     <style>
         :root {
-            --bg-color: #f4f5f7;
+            --bg-color: #fff5f9;
             --card-bg: #ffffff;
-            --primary-color: #4a6da7;
-            --text-main: #2c3e50;
-            --text-sub: #7f8c8d;
-            --border-color: #e2e8f0;
-            --color-written: #2196f3;
-            --color-oral: #ffb300;
-            --color-memorize: #9c27b0;
-            --color-read: #4caf50;
+            --primary-color: #c9508a;
+            --primary-soft: #fde4ef;
+            --text-main: #4a2f48;
+            --text-sub: #8b6b86;
+            --border-color: #f6d3e3;
+            --color-written: #4aa3f5;
+            --color-oral: #ffb347;
+            --color-memorize: #a66bd9;
+            --color-read: #4fc08d;
         }
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }
         body { background-color: #1a1a2e; display: flex; justify-content: center; align-items: center; min-height: 100vh; min-height: 100dvh; padding: 0; margin: 0; }
@@ -157,6 +161,63 @@
         .pin-error { color: #ef4444; font-size: 12px; min-height: 16px; margin-bottom: 8px; }
         .toast { position: absolute; left: 50%; bottom: 76px; transform: translateX(-50%); background: #1f2937; color: #fff; padding: 8px 14px; border-radius: 20px; font-size: 12px; z-index: 200; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
         .toast.show { opacity: 1; }
+
+        /* ===== Девчачья тема ===== */
+        * { font-family: 'Nunito', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background: linear-gradient(135deg, #ffd9ea 0%, #e9dcff 100%); }
+        .phone-frame { box-shadow: 0 20px 50px rgba(150, 60, 120, 0.28); }
+        .phone-header { background: linear-gradient(180deg, #ffffff 0%, #ffeaf3 100%); border-bottom: 1px solid var(--border-color); }
+        .week-switcher { background: #fff; border: 1px solid var(--border-color); border-radius: 22px; padding: 3px 4px; box-shadow: 0 2px 6px rgba(201, 80, 138, 0.10); }
+        .week-label { color: var(--primary-color); font-weight: 800; font-size: 14px; }
+        .chip { background: #fff; border: 1px solid var(--border-color); border-radius: 18px; color: var(--text-main); }
+        .chip.active { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
+        .day-btn { background: #fff; border: 1px solid var(--border-color); border-radius: 14px; }
+        .day-btn.active { background: linear-gradient(180deg, #dd6fa5, #c9508a); border-color: var(--primary-color); color: #fff; }
+        .day-btn.today { box-shadow: 0 0 0 2px #f3a9cb inset; }
+        .day-btn .dm { color: var(--primary-color); }
+        .day-btn.active .dm { color: #fff; }
+        .day-btn .dm.ok { color: #16a34a; }
+        .day-btn.active .dm.ok { color: #d9ffe9; }
+        .day-title { color: var(--primary-color); font-weight: 800; }
+        .badge-count { background: var(--primary-soft); color: var(--primary-color); border-radius: 10px; }
+        .badge-count.done { background: #dcfce7; color: #15803d; }
+        .subject-detail-group { border: 1px solid var(--border-color); border-radius: 20px; box-shadow: 0 2px 8px rgba(201, 80, 138, 0.08); }
+        .subject-detail-group.subj-done { background: #f3fff8; border-color: #a8e6c3; }
+        .subject-detail-group.subj-empty { background: #fffafc; box-shadow: none; }
+        .subject-detail-title { color: var(--text-main); }
+        .lesson-num { background: var(--primary-soft); color: var(--primary-color); }
+        .btn-add-inline { background: var(--primary-soft); color: var(--primary-color); border-radius: 12px; font-weight: 700; }
+        .btn-mini { background: var(--primary-soft); color: var(--primary-color); border-radius: 10px; }
+        .btn-mini.danger { background: #ffe8ec; color: #e0456b; }
+        .subtask-item { border-bottom: 1px dashed #f3d0e1; }
+        .checkbox { border-color: #eab6cf; border-radius: 9px; width: 24px; height: 24px; }
+        .checkbox.checked { background-color: #4fc08d; border-color: #4fc08d; }
+        .task-tag { border-radius: 8px; }
+        .no-tasks { color: #b89bb0; }
+        .btn-primary { background: linear-gradient(180deg, #dd6fa5, #c9508a); border-radius: 16px; }
+        .btn-secondary { background: #f8e8f0; color: var(--text-main); border-radius: 16px; }
+        .btn-quick { background: var(--primary-soft); border-radius: 14px; color: var(--text-main); }
+        .modal-body { border-radius: 26px; }
+        .field, .pesh-input { border: 1px solid #f0c6da; border-radius: 14px; color: var(--text-main); }
+        .field:focus, .pesh-input:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(201, 80, 138, 0.15); }
+        .bottom-nav { background: #fff; border-top: 1px solid var(--border-color); }
+        .nav-item { font-family: inherit; }
+        .nav-item.active { color: var(--primary-color); }
+        .g-head { background: var(--primary-soft); color: var(--primary-color); border-radius: 10px; }
+        .g-head.today { background: var(--primary-color); color: #fff; }
+        .g-cell { border-color: var(--border-color); border-radius: 12px; }
+        .g-num { color: var(--primary-color); }
+        .subject-pill { background: #fff; border: 1px solid var(--border-color); border-radius: 10px; }
+        .prev-row { border-bottom: 1px dashed #f3d0e1; }
+        .toast { background: #5a2f50; }
+
+        /* значок-флаг и кнопки-лапки */
+        .flag { width: 1.45em; height: 0.85em; vertical-align: -0.1em; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12); object-fit: cover; }
+        .paw-btn { min-width: 58px; height: 40px; padding: 0 8px; border-radius: 22px; border: none; background: var(--primary-soft); display: flex; align-items: center; justify-content: center; gap: 2px; cursor: pointer; flex-shrink: 0; box-shadow: 0 2px 6px rgba(201, 80, 138, 0.25); transition: transform 0.1s, background 0.1s; }
+        .paw-btn:active { transform: scale(0.9); background: #f9c7dd; }
+        .paw-btn svg { width: 24px; height: 24px; }
+        .paw-btn .chev { font-size: 24px; line-height: 1; color: var(--primary-color); font-weight: 800; margin-top: -2px; }
+        .cheer { background: linear-gradient(135deg, #ffe9f3, #f0e6ff); border: 1px solid #f3c7dd; color: var(--primary-color); font-weight: 800; font-size: 13px; text-align: center; padding: 10px 12px; border-radius: 18px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -164,9 +225,9 @@
     <div class="phone-header">
         <div class="sync-status off" id="syncStatus"><span class="sync-dot"></span><span id="syncText">Подключение…</span><span id="modeBadge"></span></div>
         <div class="week-switcher">
-            <button class="week-nav-btn" onclick="changeWeek(-1)">◄</button>
+            <button class="paw-btn" id="weekPrev" onclick="changeWeek(-1)" aria-label="Предыдущая неделя"></button>
             <div class="week-label" id="weekLabel" onclick="goToCurrentWeek()" title="Нажмите, чтобы вернуться к этой неделе">…</div>
-            <button class="week-nav-btn" onclick="changeWeek(1)">►</button>
+            <button class="paw-btn" id="weekNext" onclick="changeWeek(1)" aria-label="Следующая неделя"></button>
         </div>
         <div class="day-strip" id="dayStrip"></div>
         <div class="filters-scroll" id="filtersBlock">
@@ -409,6 +470,49 @@
             { num: 5, time: '12:40–13:20', name: '📖 Комплексный анализ текста' }
         ]}
     };
+
+    // ================== Значки предметов и кнопки-лапки ==================
+    // Названия предметов в базе не меняем (они служат ключами) — заменяем только то, что рисуется на экране.
+    const ICON_OVERRIDE = { '🛠️ Труд (техн.)': '🖥️', '📖 Комплексный анализ текста': '📚' };
+    // Флаг Великобритании рисуем картинкой: на Windows флаги-эмодзи превращаются в буквы «GB»
+    const FLAG_GB_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30" width="60" height="30">' +
+        '<clipPath id="s"><path d="M0,0 v30 h60 v-30 z"/></clipPath><clipPath id="t"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath>' +
+        '<g clip-path="url(#s)"><path d="M0,0 v30 h60 v-30 z" fill="#012169"/>' +
+        '<path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/>' +
+        '<path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#t)" stroke="#C8102E" stroke-width="4"/>' +
+        '<path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/>' +
+        '<path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/></g></svg>';
+    const FLAG_GB_IMG = '<img class="flag" alt="" src="data:image/svg+xml;utf8,' + encodeURIComponent(FLAG_GB_SVG) + '">';
+
+    function iconOf(name) {
+        if (ICON_OVERRIDE[name]) return ICON_OVERRIDE[name];
+        const first = String(name).split(' ')[0];
+        return /[а-яёa-z]/i.test(first) ? '' : first;   // если первого «слова»-значка нет — значка нет
+    }
+    function iconHtml(name) {
+        const ic = iconOf(name);
+        return ic === '🇬🇧' ? FLAG_GB_IMG : esc(ic);
+    }
+    function plainName(name) {
+        const s = String(name), sp = s.indexOf(' ');
+        return (sp > 0 && !/[а-яёa-z]/i.test(s.slice(0, sp))) ? s.slice(sp + 1) : s;
+    }
+    function subjHtml(name) {
+        const ic = iconHtml(name);
+        return (ic ? ic + ' ' : '') + esc(plainName(name));
+    }
+
+    // Кнопка-лапка: пальчики лапки смотрят в сторону, куда листаем
+    const PAW_PATH = '<ellipse cx="5.2" cy="10.2" rx="2.1" ry="2.7" transform="rotate(-20 5.2 10.2)"/>' +
+        '<ellipse cx="9.6" cy="5.6" rx="2.2" ry="2.9" transform="rotate(-8 9.6 5.6)"/>' +
+        '<ellipse cx="14.4" cy="5.6" rx="2.2" ry="2.9" transform="rotate(8 14.4 5.6)"/>' +
+        '<ellipse cx="18.8" cy="10.2" rx="2.1" ry="2.7" transform="rotate(20 18.8 10.2)"/>' +
+        '<path d="M12 11.2c-3.3 0-6.1 3.1-6.1 6 0 2.1 1.6 3.1 3.3 3.1 1.1 0 1.9-.6 2.8-.6s1.7.6 2.8.6c1.7 0 3.3-1 3.3-3.1 0-2.9-2.8-6-6.1-6z"/>';
+    function pawSvg(rot) {
+        return '<svg viewBox="0 0 24 24" fill="#c9508a" style="transform:rotate(' + rot + 'deg)" aria-hidden="true">' + PAW_PATH + '</svg>';
+    }
+    const PAW_BTN_LEFT = '<span class="chev">‹</span>' + pawSvg(-90);
+    const PAW_BTN_RIGHT = pawSvg(90) + '<span class="chev">›</span>';
 
     // ================== Вспомогательные функции ==================
     function pad(n) { return String(n).padStart(2, '0'); }
@@ -860,12 +964,14 @@
         const p = dayProgress(entries);
 
         let html = '<div class="day-title-row">' +
-            '<button class="week-nav-btn" onclick="shiftDay(-1)">◄</button>' +
+            '<button class="paw-btn" onclick="shiftDay(-1)" aria-label="Предыдущий день">' + PAW_BTN_LEFT + '</button>' +
             '<div style="text-align:center; flex:1;"><div class="day-title">' + esc(DAY_NAMES[selectedDayId]) + ', ' + fmtDay(dayDate) +
             (toISO(dayDate) === todayISO ? ' · сегодня' : '') + '</div>' +
             '<span class="badge-count' + (p.total > 0 && p.done === p.total ? ' done' : '') + '">' +
             (p.total === 0 ? 'Нет ДЗ' : 'выполнено ' + p.done + ' из ' + p.total + ' предметов') + '</span></div>' +
-            '<button class="week-nav-btn" onclick="shiftDay(1)">►</button></div>';
+            '<button class="paw-btn" onclick="shiftDay(1)" aria-label="Следующий день">' + PAW_BTN_RIGHT + '</button></div>';
+
+        if (p.total > 0 && p.done === p.total) html += '<div class="cheer">🎉 Молодец! Все задания на этот день выполнены 💖</div>';
 
         let shown = 0;
         entries.forEach((e, i) => {
@@ -900,7 +1006,7 @@
             html += '<div class="subject-detail-group' + (allDone ? ' subj-done' : '') + (empty ? ' subj-empty' : '') + '">' +
                 '<div class="subject-detail-title"><div class="subj-left">' +
                 (e.nums.length ? '<span class="lesson-num">' + e.nums.join('·') + '</span>' : '') +
-                '<span>' + esc(e.name) + (allDone ? ' ✓' : '') + '</span></div>' +
+                '<span>' + subjHtml(e.name) + (allDone ? ' ✓' : '') + '</span></div>' +
                 '<div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">' +
                 (empty ? '<span class="no-tasks">нет ДЗ</span>' : (e.time ? '<span class="subj-time">' + esc(e.time.split('–')[0]) + '</span>' : '')) +
                 (canEdit ? '<button class="btn-add-inline" style="margin-right:0;" onclick="openAddForIndex(' + i + ')">➕</button>' : '') + '</div></div>' +
@@ -946,8 +1052,8 @@
                 }
                 const sp = l.name.indexOf(' ');
                 html += '<div class="g-cell has" onclick="openDayFromGrid(\'' + id + '\')">' +
-                    '<div class="g-ico">' + esc(l.name.slice(0, sp)) + '</div>' +
-                    '<div class="g-name">' + esc(SHORT_NAMES[l.name] || l.name.slice(sp + 1)) + '</div>' +
+                    '<div class="g-ico">' + iconHtml(l.name) + '</div>' +
+                    '<div class="g-name">' + esc(SHORT_NAMES[l.name] || plainName(l.name)) + '</div>' +
                     '<div class="g-dots">' + mark + '</div></div>';
             });
         }
@@ -961,7 +1067,7 @@
         let extra = '';
         DAY_IDS.forEach(id => perDay[id].filter(e => e.nums.length === 0).forEach(e => {
             extra += '<span class="subject-pill" style="cursor:pointer;" onclick="openDayFromGrid(\'' + id + '\')">' +
-                DAY_SHORT[id] + ': ' + esc(e.name) + ' (' + e.tasks.length + ')</span> ';
+                DAY_SHORT[id] + ': ' + subjHtml(e.name) + ' (' + e.tasks.length + ')</span> ';
         }));
         if (extra) html += '<div class="field-label" style="margin-top:8px;">Не по расписанию</div><div class="subject-preview-list">' + extra + '</div>';
 
@@ -1037,7 +1143,7 @@
         const select = document.getElementById('addSubjectSelect');
         const names = ALL_SUBJECTS.slice();
         if (presetSubject && !names.includes(presetSubject)) names.push(presetSubject);
-        select.innerHTML = names.map(s => '<option value="' + esc(s) + '">' + esc(s) + '</option>').join('');
+        select.innerHTML = names.map(s => '<option value="' + esc(s) + '">' + esc(plainName(s)) + '</option>').join('');
         if (presetSubject) select.value = presetSubject;
 
         document.getElementById('addDay').value = presetDay || selectedDayId || 'mon';
@@ -1145,7 +1251,7 @@
         const subjSel = document.getElementById('editSubject');
         const names = ALL_SUBJECTS.slice();
         if (!names.includes(f.s.name)) names.push(f.s.name);
-        subjSel.innerHTML = names.map(s => '<option value="' + esc(s) + '">' + esc(s) + '</option>').join('');
+        subjSel.innerHTML = names.map(s => '<option value="' + esc(s) + '">' + esc(plainName(s)) + '</option>').join('');
         subjSel.value = f.s.name;
         document.getElementById('editText1').classList.remove('error');
         document.getElementById('editText2').classList.remove('error');
@@ -1228,7 +1334,7 @@
         const f = findTask(taskId);
         if (!f) return;
         movingTaskId = taskId;
-        document.getElementById('moveTaskInfo').textContent = f.s.name + ': ' + f.t.text;
+        document.getElementById('moveTaskInfo').textContent = plainName(f.s.name) + ': ' + f.t.text;
         document.getElementById('moveDate').value = nextSchoolDayISO();
         document.getElementById('moveModal').classList.add('active');
     }
@@ -1509,7 +1615,7 @@
 
         document.getElementById('importPreview').innerHTML = importItems.map((it, i) =>
             '<label class="prev-row"><input type="checkbox" checked onchange="toggleImportItem(' + i + ', this.checked)">' +
-            '<div><div class="prev-head">' + esc(it.subject) + ' · ' + esc(placeLabel(it.place)) + ' · ' + getTypeTag(it.type) + '</div>' +
+            '<div><div class="prev-head">' + subjHtml(it.subject) + ' · ' + esc(placeLabel(it.place)) + ' · ' + getTypeTag(it.type) + '</div>' +
             '<div class="prev-text">' + esc(it.text) + '</div></div></label>').join('');
         updateImportCount();
         document.getElementById('importStep1').style.display = 'none';
@@ -1564,7 +1670,7 @@
         ['addType', 'editType1', 'editType2'].forEach(id => { document.getElementById(id).innerHTML = TYPE_OPTIONS; });
         document.getElementById('importSubject').innerHTML =
             '<option value="auto">Определить по тексту («Предмет: задание»)</option>' +
-            ALL_SUBJECTS.map(s => '<option value="' + esc(s) + '">' + esc(s) + '</option>').join('');
+            ALL_SUBJECTS.map(s => '<option value="' + esc(s) + '">' + esc(plainName(s)) + '</option>').join('');
     }
     (function initSwipe() {
         const area = document.getElementById('contentArea');
@@ -1581,6 +1687,8 @@
             if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.5) shiftDay(dx < 0 ? 1 : -1);
         }, { passive: true });
     })();
+    document.getElementById('weekPrev').innerHTML = PAW_BTN_LEFT;
+    document.getElementById('weekNext').innerHTML = PAW_BTN_RIGHT;
     initSelects();
 
     render();
