@@ -211,6 +211,10 @@
         .prev-row { border-bottom: 1px dashed #f3d0e1; }
         .toast { background: #5a2f50; }
 
+        /* фильтры: «Все» всегда видна слева, даже если ряд прокручен */
+        .filters-scroll .chip[data-f="all"] { position: sticky; left: 0; z-index: 2; box-shadow: 8px 0 8px -6px rgba(150, 60, 120, 0.25); }
+        .filter-note { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: #fff; border: 1px dashed #f0b6d2; border-radius: 14px; padding: 8px 10px; margin-bottom: 10px; font-size: 12px; color: var(--text-main); }
+
         /* значок-флаг и кнопки-лапки */
         .flag { width: 1.45em; height: 0.85em; vertical-align: -0.1em; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12); object-fit: cover; }
         .paw-btn { min-width: 58px; height: 40px; padding: 0 8px; border-radius: 22px; border: none; background: var(--primary-soft); display: flex; align-items: center; justify-content: center; gap: 2px; cursor: pointer; flex-shrink: 0; box-shadow: 0 2px 6px rgba(201, 80, 138, 0.25); transition: transform 0.1s, background 0.1s; }
@@ -231,12 +235,12 @@
         </div>
         <div class="day-strip" id="dayStrip"></div>
         <div class="filters-scroll" id="filtersBlock">
-            <div class="chip active" onclick="setFilter('all', this)">Все</div>
-            <div class="chip" onclick="setFilter('important', this)">⭐️ Важные</div>
-            <div class="chip" onclick="setFilter('written', this)">🟦 Письменно</div>
-            <div class="chip" onclick="setFilter('memorize', this)">🟪 Наизусть</div>
-            <div class="chip" onclick="setFilter('oral', this)">🟨 Устно</div>
-            <div class="chip" onclick="setFilter('read', this)">🟩 Прочитать</div>
+            <div class="chip active" data-f="all" onclick="setFilter('all')">Все</div>
+            <div class="chip" data-f="important" onclick="setFilter('important')">⭐️ Важные</div>
+            <div class="chip" data-f="written" onclick="setFilter('written')">🟦 Письменно</div>
+            <div class="chip" data-f="memorize" onclick="setFilter('memorize')">🟪 Наизусть</div>
+            <div class="chip" data-f="oral" onclick="setFilter('oral')">🟨 Устно</div>
+            <div class="chip" data-f="read" onclick="setFilter('read')">🟩 Прочитать</div>
         </div>
     </div>
 
@@ -721,10 +725,20 @@
         if (e) openAddModal(e.name, selectedDayId);
     }
 
-    function setFilter(filter, el) {
-        currentFilter = filter;
-        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-        el.classList.add('active');
+    const FILTER_NAMES = { important: '⭐️ Важные', written: '🟦 Письменно', memorize: '🟪 Наизусть', oral: '🟨 Устно', read: '🟩 Прочитать' };
+    function syncFilterChips() {
+        document.querySelectorAll('#filtersBlock .chip').forEach(ch => ch.classList.toggle('active', ch.getAttribute('data-f') === currentFilter));
+    }
+    function setFilter(filter) {
+        // повторное нажатие на выбранную категорию снимает фильтр
+        currentFilter = (filter !== 'all' && filter === currentFilter) ? 'all' : filter;
+        syncFilterChips();
+        render();
+    }
+    function resetFilter() {
+        currentFilter = 'all';
+        syncFilterChips();
+        document.getElementById('filtersBlock').scrollLeft = 0;
         render();
     }
     function passFilter(t) {
@@ -972,6 +986,11 @@
             '<button class="paw-btn" onclick="shiftDay(1)" aria-label="Следующий день">' + PAW_BTN_RIGHT + '</button></div>';
 
         if (p.total > 0 && p.done === p.total) html += '<div class="cheer">🎉 Молодец! Все задания на этот день выполнены 💖</div>';
+
+        if (currentFilter !== 'all') {
+            html += '<div class="filter-note"><span>Показаны только: <b>' + (FILTER_NAMES[currentFilter] || '') + '</b></span>' +
+                '<button class="btn-mini" onclick="resetFilter()">✕ Показать все</button></div>';
+        }
 
         let shown = 0;
         entries.forEach((e, i) => {
