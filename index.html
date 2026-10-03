@@ -1711,6 +1711,12 @@
     initSelects();
 
     render();
+
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').catch(() => { /* не критично, если не получится */ });
+        });
+    }
 </script>
 </body>
 </html>
