@@ -102,6 +102,9 @@
         .lesson-time { font-size: 11px; color: var(--text-sub); font-weight: 500; }
         .lesson-title { font-size: 13px; font-weight: 700; color: var(--text-main); flex: 1; margin-left: 12px; }
 
+        .sum-day { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 14px 2px 6px; font-size: 13px; font-weight: 700; color: var(--primary-color); cursor: pointer; }
+        .sum-count { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: var(--primary-soft); color: var(--primary-color); white-space: nowrap; }
+        .sum-count.ok { background: #dcfce7; color: #15803d; }
         .bottom-nav { background: var(--card-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; padding: 8px 0; }
         .nav-item { display: flex; flex-direction: column; align-items: center; font-size: 10px; color: var(--text-sub); cursor: pointer; border: none; background: transparent; flex: 1; }
         .nav-item.active { color: var(--primary-color); font-weight: 700; }
@@ -228,7 +231,7 @@
 <div class="phone-frame">
     <div class="phone-header">
         <div class="sync-status off" id="syncStatus"><span class="sync-dot"></span><span id="syncText">Подключение…</span><span id="modeBadge"></span></div>
-        <div class="week-switcher">
+        <div class="week-switcher" id="weekSwitcher">
             <button class="paw-btn" id="weekPrev" onclick="changeWeek(-1)" aria-label="Предыдущая неделя"></button>
             <div class="week-label" id="weekLabel" onclick="goToCurrentWeek()" title="Нажмите, чтобы вернуться к этой неделе">…</div>
             <button class="paw-btn" id="weekNext" onclick="changeWeek(1)" aria-label="Следующая неделя"></button>
@@ -252,6 +255,9 @@
         </button>
         <button class="nav-item" id="navTimetable" onclick="switchTab('timetable')">
             <span class="nav-icon">📅</span><span>Расписание</span>
+        </button>
+        <button class="nav-item" id="navSummary" onclick="switchTab('summary')">
+            <span class="nav-icon">📋</span><span>Сводка</span>
         </button>
         <button class="nav-item" id="navImport" onclick="openImportModal()">
             <span class="nav-icon">🔄</span><span>Импорт ПЭШ</span>
@@ -694,7 +700,10 @@
         currentTab = tab;
         document.getElementById('navTasks').classList.toggle('active', tab === 'tasks');
         document.getElementById('navTimetable').classList.toggle('active', tab === 'timetable');
+        document.getElementById('navSummary').classList.toggle('active', tab === 'summary');
         document.getElementById('filtersBlock').style.display = (tab === 'tasks') ? 'flex' : 'none';
+        document.getElementById('weekSwitcher').style.display = (tab === 'summary') ? 'none' : '';
+        document.getElementById('contentArea').scrollTop = 0;
         render();
     }
     function selectDay(id) {
@@ -945,6 +954,11 @@
         const container = document.getElementById('contentArea');
         const strip = document.getElementById('dayStrip');
         if (!loaded) { strip.style.display = 'none'; container.innerHTML = '<div class="empty">Загрузка…</div>'; return; }
+        if (currentTab === 'summary') {
+            strip.style.display = 'none';
+            renderSummaryTab(container);
+            return;
+        }
         const week = getWeek(currentWeekStart);
         if (currentTab === 'timetable') {
             strip.style.display = 'none';
@@ -1032,6 +1046,68 @@
                 (empty ? '' : (tasksHtml || '<div class="no-tasks">По этому фильтру заданий нет</div>')) + '</div>';
         });
         if (shown === 0) html += '<div class="empty">По этому фильтру заданий нет</div>';
+        container.innerHTML = html;
+    }
+
+    // Вкладка «Сводка»: все задания, начиная с завтрашнего дня, по датам
+    function openDayFromSummary(iso) {
+        const d = fromISO(iso);
+        currentWeekStart = mondayISO(d);
+        selectedDayId = DAY_IDS[(d.getDay() + 6) % 7];
+        switchTab('tasks');
+    }
+    function renderSummaryTab(container) {
+        const tomorrow = addDays(new Date(), 1);
+        const tomorrowISO = toISO(tomorrow);
+        const days = [];   // { iso, date, dayId, entries }
+        weeksData.forEach(w => {
+            const ws = fromISO(w.start);
+            DAY_IDS.forEach((id, i) => {
+                const date = addDays(ws, i), iso = toISO(date);
+                if (iso < tomorrowISO) return;
+                const entries = daySubjects(w, id).filter(e => e.tasks.length > 0);
+                if (entries.length) days.push({ iso: iso, date: date, dayId: id, entries: entries });
+            });
+        });
+        days.sort((a, b) => a.iso < b.iso ? -1 : 1);
+
+        let total = 0, open = 0;
+        days.forEach(d => d.entries.forEach(e => e.tasks.forEach(t => { total++; if (!t.done) open++; })));
+
+        let html = '<div class="day-title-row"><div style="text-align:center; flex:1;"><div class="day-title">Что задано дальше</div>' +
+            '<span class="badge-count' + (total > 0 && open === 0 ? ' done' : '') + '">' +
+            (total === 0 ? 'Заданий нет' : 'не выполнено ' + open + ' из ' + total + ' · с ' + fmtDay(tomorrow)) +
+            '</span></div></div>';
+
+        if (total === 0) {
+            html += '<div class="empty">С завтрашнего дня заданий пока нет 🎉</div>';
+            container.innerHTML = html;
+            return;
+        }
+
+        days.forEach(d => {
+            const dayTasks = d.entries.reduce((n, e) => n + e.tasks.length, 0);
+            const dayOpen = d.entries.reduce((n, e) => n + e.tasks.filter(t => !t.done).length, 0);
+            html += '<div class="sum-day" onclick="openDayFromSummary(\'' + d.iso + '\')">' +
+                '<span>' + esc(DAY_NAMES[d.dayId]) + ', ' + fmtDay(d.date) + (d.iso === tomorrowISO ? ' · завтра' : '') + '</span>' +
+                '<span class="sum-count' + (dayOpen === 0 ? ' ok' : '') + '">' + (dayOpen === 0 ? '✓ всё' : dayOpen + ' из ' + dayTasks) + '</span></div>';
+            d.entries.forEach(e => {
+                const allDone = e.tasks.every(t => t.done);
+                let tasksHtml = '';
+                e.tasks.forEach(task => {
+                    const id = esc(task.id), type = safeType(task.type);
+                    tasksHtml += '<div class="subtask-item"><div class="task-main">' +
+                        '<div class="checkbox' + (task.done ? ' checked' : '') + '" onclick="toggleTask(\'' + id + '\')"></div>' +
+                        '<span class="task-tag tag-' + type + '">' + getTypeTag(type) + '</span>' +
+                        '<div class="subtask-text' + (task.done ? ' completed' : '') + '">' + esc(task.text) + '</div>' +
+                        (task.important ? '<span class="star static">⭐️</span>' : '') +
+                        '</div></div>';
+                });
+                html += '<div class="subject-detail-group' + (allDone ? ' subj-done' : '') + '">' +
+                    '<div class="subject-detail-title"><div class="subj-left"><span>' + subjHtml(e.name) + (allDone ? ' ✓' : '') + '</span></div></div>' +
+                    tasksHtml + '</div>';
+            });
+        });
         container.innerHTML = html;
     }
 
