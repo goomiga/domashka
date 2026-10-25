@@ -665,7 +665,7 @@
     db.ref(DB_PATH).on('value', snapshot => {
         const val = snapshot.val();
         pinData = (val && val.settings && val.settings.pinHash && val.settings.pinSalt) ? val.settings : null;
-        intensiveDone = (val && val.intensive2 && val.intensive2.done) || {};
+        intensiveDone = (val && val.intensive3 && val.intensive3.done) || {};
         weeksData = normalizeData(val);
         migrateSchedule();
         loaded = true;
@@ -1082,22 +1082,21 @@
     // ================== Вкладка «Интенсив» (временная, на каникулы) ==================
     const INTENSIVE_START = '2026-10-25';   // воскресенье; 8 дней, до воскресенья 1 ноября
     const INT_ALG = '📐 Алгебра', INT_GEO = '📐 Геометрия';
-    const INT_REP = '🔁 Повторить (5–10 мин)';
     const INTENSIVE_DAYS = [
-        { rep: 'Знаки при сложении и вычитании: −5 − 3 и −5 + 3', alg: ['1', '29', '30'], geo: ['8', '9'] },
-        { rep: 'Выражение с переменной и его значение; как измерять отрезок и находить его часть', alg: ['2', '31', '32'], geo: ['2', '6'] },
-        { rep: 'Формулы и вычисления по формуле; точка, прямая, луч, отрезок, угол', book: 'числовые выражения, порядок действий', alg: ['33', '34'], geo: ['11', '12'] },
-        { rep: 'Виды углов, транспортир', book: 'сравнение значений выражений, свойства действий над числами', alg: ['36', '37'], geo: ['14', '15'] },
-        { rep: 'Уравнение и корень; смежные углы в сумме 180°, вертикальные равны', book: 'степень и стандартный вид числа', alg: ['38', '41'], geo: ['16', '17'] },
-        { rep: 'Перенос слагаемого через «=» со сменой знака; перпендикулярные прямые, смежные и вертикальные углы', alg: ['42', '40', '43'], geo: ['31', '32'] },
-        { rep: 'Линейное уравнение и схема задачи «что спрашивают, то x»; равенство треугольников', alg: ['46', '68'], geo: ['33', '34'] },
-        { rep: 'Степень с натуральным показателем, тождества; первый признак равенства: Дано, Доказать, Доказательство', alg: ['69'], geo: ['29', '30'] }
+        { wa: 'Знаки при сложении и вычитании: −5 − 3 и −5 + 3', alg: ['1', '29', '30'], geo: ['8', '9'] },
+        { wa: 'Выражение с переменной и его значение', wg: 'Как измерять отрезок и находить его часть', alg: ['2', '31', '32'], geo: ['2', '6'] },
+        { wa: 'Формулы и вычисления по формуле; числовые выражения, порядок действий', wg: 'Точка, прямая, луч, отрезок, угол', alg: ['33', '34'], geo: ['11', '12'] },
+        { wa: 'Сравнение значений выражений, свойства действий над числами', wg: 'Виды углов, транспортир', alg: ['36', '37'], geo: ['14', '15'] },
+        { wa: 'Уравнение и корень; степень и стандартный вид числа', wg: 'Смежные углы в сумме 180°, вертикальные равны', alg: ['38', '41'], geo: ['16', '17'] },
+        { wa: 'Перенос слагаемого через «=» со сменой знака', wg: 'Перпендикулярные прямые, смежные и вертикальные углы', alg: ['42', '40', '43'], geo: ['31', '32'] },
+        { wa: 'Линейное уравнение и схема задачи «что спрашивают, то x»', wg: 'Равенство треугольников', alg: ['46', '68'], geo: ['33', '34'] },
+        { wa: 'Степень с натуральным показателем, тождества', wg: 'Первый признак равенства: Дано, Доказать, Доказательство', alg: ['69'], geo: ['29', '30'] }
     ].map((d, i) => {
-        const items = [];
-        items.push({ key: 'd' + (i + 1) + '_r1', subj: INT_REP, text: d.rep });
-        if (d.book) items.push({ key: 'd' + (i + 1) + '_r2', subj: INT_REP, text: 'Из учебника: ' + d.book });
-        d.alg.forEach((t, j) => items.push({ key: 'd' + (i + 1) + '_a' + (j + 1), subj: INT_ALG, text: '№' + t }));
-        d.geo.forEach((t, j) => items.push({ key: 'd' + (i + 1) + '_g' + (j + 1), subj: INT_GEO, text: '№' + t }));
+        const items = [], k = 'd' + (i + 1);
+        if (d.wa) items.push({ key: k + '_wa', subj: INT_ALG, text: '🔥 Разогрев: ' + d.wa });
+        d.alg.forEach((t, j) => items.push({ key: k + '_a' + (j + 1), subj: INT_ALG, text: '№' + t }));
+        if (d.wg) items.push({ key: k + '_wg', subj: INT_GEO, text: '🔥 Разогрев: ' + d.wg });
+        d.geo.forEach((t, j) => items.push({ key: k + '_g' + (j + 1), subj: INT_GEO, text: '№' + t }));
         return { n: i + 1, date: addDays(fromISO(INTENSIVE_START), i), items: items };
     });
     const intOpen = new Set();
@@ -1109,7 +1108,7 @@
     function toggleIntensiveItem(key) {
         const was = !!intensiveDone[key];
         if (was) delete intensiveDone[key]; else intensiveDone[key] = true;
-        const ref = db.ref(DB_PATH + '/intensive2/done/' + key);
+        const ref = db.ref(DB_PATH + '/intensive3/done/' + key);
         (was ? ref.remove() : ref.set(true)).catch(err => { console.error(err); showToast('Не удалось сохранить: нет доступа к базе'); });
         render();
     }
@@ -1122,7 +1121,7 @@
             if (close) intensiveDone[it.key] = true; else delete intensiveDone[it.key];
             upd[it.key] = close ? true : null;
         });
-        db.ref(DB_PATH + '/intensive2/done').update(upd).catch(err => { console.error(err); showToast('Не удалось сохранить: нет доступа к базе'); });
+        db.ref(DB_PATH + '/intensive3/done').update(upd).catch(err => { console.error(err); showToast('Не удалось сохранить: нет доступа к базе'); });
         if (close) { intOpen.delete(n); showToast('День ' + n + ' закрыт 🎉'); }
         render();
     }
@@ -1156,7 +1155,7 @@
                 '<span class="sum-count' + (allDone ? ' ok' : '') + '">' + cnt + ' из ' + d.items.length + '</span>' +
                 '<span class="int-arrow">›</span></div>' +
                 '<div class="int-body">';
-            [INT_REP, INT_ALG, INT_GEO].forEach(subj => {
+            [INT_ALG, INT_GEO].forEach(subj => {
                 const rows = d.items.filter(it => it.subj === subj);
                 if (!rows.length) return;
                 html += '<div class="int-subj">' + subjHtml(subj) + '</div>';
