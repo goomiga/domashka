@@ -665,7 +665,7 @@
     db.ref(DB_PATH).on('value', snapshot => {
         const val = snapshot.val();
         pinData = (val && val.settings && val.settings.pinHash && val.settings.pinSalt) ? val.settings : null;
-        intensiveDone = (val && val.intensive && val.intensive.done) || {};
+        intensiveDone = (val && val.intensive2 && val.intensive2.done) || {};
         weeksData = normalizeData(val);
         migrateSchedule();
         loaded = true;
@@ -1082,19 +1082,22 @@
     // ================== Вкладка «Интенсив» (временная, на каникулы) ==================
     const INTENSIVE_START = '2026-10-25';   // воскресенье; 8 дней, до воскресенья 1 ноября
     const INT_ALG = '📐 Алгебра', INT_GEO = '📐 Геометрия';
+    const INT_REP = '🔁 Повторить (5–10 мин)';
     const INTENSIVE_DAYS = [
-        { alg: ['1', '2', '7', '8 · проценты, часть 1', '9'], geo: ['2', '6'] },
-        { alg: ['29', '30', '31', '32', '33'], geo: ['8', '9'] },
-        { alg: ['34', '35', '68', '69'], geo: ['10', '11'] },
-        { alg: ['70', '71', '72', '73'], geo: ['12', '13'] },
-        { alg: ['36', '37', '38', '39', '40'], geo: ['14', '15'] },
-        { alg: ['41', '42', '43', '44'], geo: ['29', '30', '31'] },
-        { alg: ['46', '47', '48', '49'], geo: ['32', '33'] },
-        { alg: ['6', '45 · контрольная', '129', '130'], geo: ['34', 'контрольная 28'] }
+        { rep: 'Знаки при сложении и вычитании: −5 − 3 и −5 + 3', alg: ['1', '29', '30'], geo: ['8', '9'] },
+        { rep: 'Выражение с переменной и его значение; как измерять отрезок и находить его часть', alg: ['2', '31', '32'], geo: ['2', '6'] },
+        { rep: 'Формулы и вычисления по формуле; точка, прямая, луч, отрезок, угол', book: 'числовые выражения, порядок действий', alg: ['33', '34'], geo: ['11', '12'] },
+        { rep: 'Виды углов, транспортир', book: 'сравнение значений выражений, свойства действий над числами', alg: ['36', '37'], geo: ['14', '15'] },
+        { rep: 'Уравнение и корень; смежные углы в сумме 180°, вертикальные равны', book: 'степень и стандартный вид числа', alg: ['38', '41'], geo: ['16', '17'] },
+        { rep: 'Перенос слагаемого через «=» со сменой знака; перпендикулярные прямые, смежные и вертикальные углы', alg: ['42', '40', '43'], geo: ['31', '32'] },
+        { rep: 'Линейное уравнение и схема задачи «что спрашивают, то x»; равенство треугольников', alg: ['46', '68'], geo: ['33', '34'] },
+        { rep: 'Степень с натуральным показателем, тождества; первый признак равенства: Дано, Доказать, Доказательство', alg: ['69'], geo: ['29', '30'] }
     ].map((d, i) => {
         const items = [];
-        d.alg.forEach((t, j) => items.push({ key: 'd' + (i + 1) + '_a' + (j + 1), subj: INT_ALG, text: 'Урок ' + t }));
-        d.geo.forEach((t, j) => items.push({ key: 'd' + (i + 1) + '_g' + (j + 1), subj: INT_GEO, text: /^\d/.test(t) ? '№' + t : '№' + t.replace('контрольная ', '') + ' · контрольная' }));
+        items.push({ key: 'd' + (i + 1) + '_r1', subj: INT_REP, text: d.rep });
+        if (d.book) items.push({ key: 'd' + (i + 1) + '_r2', subj: INT_REP, text: 'Из учебника: ' + d.book });
+        d.alg.forEach((t, j) => items.push({ key: 'd' + (i + 1) + '_a' + (j + 1), subj: INT_ALG, text: '№' + t }));
+        d.geo.forEach((t, j) => items.push({ key: 'd' + (i + 1) + '_g' + (j + 1), subj: INT_GEO, text: '№' + t }));
         return { n: i + 1, date: addDays(fromISO(INTENSIVE_START), i), items: items };
     });
     const intOpen = new Set();
@@ -1106,7 +1109,7 @@
     function toggleIntensiveItem(key) {
         const was = !!intensiveDone[key];
         if (was) delete intensiveDone[key]; else intensiveDone[key] = true;
-        const ref = db.ref(DB_PATH + '/intensive/done/' + key);
+        const ref = db.ref(DB_PATH + '/intensive2/done/' + key);
         (was ? ref.remove() : ref.set(true)).catch(err => { console.error(err); showToast('Не удалось сохранить: нет доступа к базе'); });
         render();
     }
@@ -1119,7 +1122,7 @@
             if (close) intensiveDone[it.key] = true; else delete intensiveDone[it.key];
             upd[it.key] = close ? true : null;
         });
-        db.ref(DB_PATH + '/intensive/done').update(upd).catch(err => { console.error(err); showToast('Не удалось сохранить: нет доступа к базе'); });
+        db.ref(DB_PATH + '/intensive2/done').update(upd).catch(err => { console.error(err); showToast('Не удалось сохранить: нет доступа к базе'); });
         if (close) { intOpen.delete(n); showToast('День ' + n + ' закрыт 🎉'); }
         render();
     }
@@ -1153,7 +1156,7 @@
                 '<span class="sum-count' + (allDone ? ' ok' : '') + '">' + cnt + ' из ' + d.items.length + '</span>' +
                 '<span class="int-arrow">›</span></div>' +
                 '<div class="int-body">';
-            [INT_ALG, INT_GEO].forEach(subj => {
+            [INT_REP, INT_ALG, INT_GEO].forEach(subj => {
                 const rows = d.items.filter(it => it.subj === subj);
                 if (!rows.length) return;
                 html += '<div class="int-subj">' + subjHtml(subj) + '</div>';
