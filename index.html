@@ -105,6 +105,25 @@
         .sum-day { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 14px 2px 6px; font-size: 13px; font-weight: 700; color: var(--primary-color); cursor: pointer; }
         .sum-count { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: var(--primary-soft); color: var(--primary-color); white-space: nowrap; }
         .sum-count.ok { background: #dcfce7; color: #15803d; }
+        .int-total { background: linear-gradient(135deg, #ffe9f3, #f0e6ff); border: 1px solid #f3c7dd; border-radius: 18px; padding: 12px 14px; margin-bottom: 12px; }
+        .int-total-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; font-weight: 800; color: var(--primary-color); margin-bottom: 8px; }
+        .int-bar { height: 8px; background: #fff; border-radius: 6px; overflow: hidden; }
+        .int-bar > div { height: 100%; background: linear-gradient(90deg, #e06ba5, #4fc08d); border-radius: 6px; transition: width 0.25s; }
+        .int-day { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 20px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(201, 80, 138, 0.08); overflow: hidden; }
+        .int-day.today { border-color: var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color) inset; }
+        .int-day.done { background: #f3fff8; border-color: #a8e6c3; box-shadow: none; }
+        .int-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; }
+        .int-num { width: 30px; height: 30px; border-radius: 50%; background: var(--primary-soft); color: var(--primary-color); font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .int-day.done .int-num { background: #4fc08d; color: #fff; }
+        .int-title { flex: 1; font-size: 14px; font-weight: 700; color: var(--text-main); }
+        .int-title small { display: block; font-size: 11px; font-weight: 600; color: var(--text-sub); }
+        .int-arrow { color: var(--text-sub); font-size: 14px; transition: transform 0.15s; }
+        .int-day.open .int-arrow { transform: rotate(90deg); }
+        .int-body { display: none; padding: 0 14px 12px; }
+        .int-day.open .int-body { display: block; }
+        .int-subj { font-size: 12px; font-weight: 800; color: var(--primary-color); margin: 8px 0 2px; }
+        .int-close { width: 100%; margin-top: 10px; border: none; border-radius: 14px; padding: 11px; font-size: 13px; font-weight: 800; cursor: pointer; background: var(--primary-color); color: #fff; }
+        .int-close.undo { background: var(--primary-soft); color: var(--primary-color); }
         .bottom-nav { background: var(--card-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; padding: 8px 0; }
         .nav-item { display: flex; flex-direction: column; align-items: center; font-size: 10px; color: var(--text-sub); cursor: pointer; border: none; background: transparent; flex: 1; }
         .nav-item.active { color: var(--primary-color); font-weight: 700; }
@@ -258,6 +277,9 @@
         </button>
         <button class="nav-item" id="navSummary" onclick="switchTab('summary')">
             <span class="nav-icon">📋</span><span>Сводка</span>
+        </button>
+        <button class="nav-item" id="navIntensive" onclick="switchTab('intensive')">
+            <span class="nav-icon">🚀</span><span>Интенсив</span>
         </button>
         <button class="nav-item" id="navImport" onclick="openImportModal()">
             <span class="nav-icon">🔄</span><span>Импорт ПЭШ</span>
@@ -563,6 +585,7 @@
         else selectedDayId = DAY_IDS[idx];
     })();
     let pendingConfirmAction = null;
+    let intensiveDone = {};   // отметки интенсива: { ключ: true }
     let editingTaskId = null;
 
     // ================== Данные ==================
@@ -642,6 +665,7 @@
     db.ref(DB_PATH).on('value', snapshot => {
         const val = snapshot.val();
         pinData = (val && val.settings && val.settings.pinHash && val.settings.pinSalt) ? val.settings : null;
+        intensiveDone = (val && val.intensive && val.intensive.done) || {};
         weeksData = normalizeData(val);
         migrateSchedule();
         loaded = true;
@@ -701,8 +725,9 @@
         document.getElementById('navTasks').classList.toggle('active', tab === 'tasks');
         document.getElementById('navTimetable').classList.toggle('active', tab === 'timetable');
         document.getElementById('navSummary').classList.toggle('active', tab === 'summary');
+        document.getElementById('navIntensive').classList.toggle('active', tab === 'intensive');
         document.getElementById('filtersBlock').style.display = (tab === 'tasks') ? 'flex' : 'none';
-        document.getElementById('weekSwitcher').style.display = (tab === 'summary') ? 'none' : '';
+        document.getElementById('weekSwitcher').style.display = (tab === 'summary' || tab === 'intensive') ? 'none' : '';
         document.getElementById('contentArea').scrollTop = 0;
         render();
     }
@@ -959,6 +984,11 @@
             renderSummaryTab(container);
             return;
         }
+        if (currentTab === 'intensive') {
+            strip.style.display = 'none';
+            renderIntensiveTab(container);
+            return;
+        }
         const week = getWeek(currentWeekStart);
         if (currentTab === 'timetable') {
             strip.style.display = 'none';
@@ -1046,6 +1076,99 @@
                 (empty ? '' : (tasksHtml || '<div class="no-tasks">По этому фильтру заданий нет</div>')) + '</div>';
         });
         if (shown === 0) html += '<div class="empty">По этому фильтру заданий нет</div>';
+        container.innerHTML = html;
+    }
+
+    // ================== Вкладка «Интенсив» (временная, на каникулы) ==================
+    const INTENSIVE_START = '2026-10-25';   // воскресенье; 8 дней, до воскресенья 1 ноября
+    const INT_ALG = '📐 Алгебра', INT_GEO = '📐 Геометрия';
+    const INTENSIVE_DAYS = [
+        { alg: ['1', '2', '7', '8 · проценты, часть 1', '9'], geo: ['2', '6'] },
+        { alg: ['29', '30', '31', '32', '33'], geo: ['8', '9'] },
+        { alg: ['34', '35', '68', '69'], geo: ['10', '11'] },
+        { alg: ['70', '71', '72', '73'], geo: ['12', '13'] },
+        { alg: ['36', '37', '38', '39', '40'], geo: ['14', '15'] },
+        { alg: ['41', '42', '43', '44'], geo: ['29', '30', '31'] },
+        { alg: ['46', '47', '48', '49'], geo: ['32', '33'] },
+        { alg: ['6', '45 · контрольная', '129', '130'], geo: ['34', 'контрольная 28'] }
+    ].map((d, i) => {
+        const items = [];
+        d.alg.forEach((t, j) => items.push({ key: 'd' + (i + 1) + '_a' + (j + 1), subj: INT_ALG, text: 'Урок ' + t }));
+        d.geo.forEach((t, j) => items.push({ key: 'd' + (i + 1) + '_g' + (j + 1), subj: INT_GEO, text: /^\d/.test(t) ? '№' + t : '№' + t.replace('контрольная ', '') + ' · контрольная' }));
+        return { n: i + 1, date: addDays(fromISO(INTENSIVE_START), i), items: items };
+    });
+    const intOpen = new Set();
+    let intOpenInit = false;
+
+    function intDayDone(day) { return day.items.every(it => intensiveDone[it.key]); }
+    function intDayCount(day) { return day.items.filter(it => intensiveDone[it.key]).length; }
+
+    function toggleIntensiveItem(key) {
+        const was = !!intensiveDone[key];
+        if (was) delete intensiveDone[key]; else intensiveDone[key] = true;
+        const ref = db.ref(DB_PATH + '/intensive/done/' + key);
+        (was ? ref.remove() : ref.set(true)).catch(err => { console.error(err); showToast('Не удалось сохранить: нет доступа к базе'); });
+        render();
+    }
+    function closeIntensiveDay(n) {
+        const day = INTENSIVE_DAYS[n - 1];
+        if (!day) return;
+        const close = !intDayDone(day);
+        const upd = {};
+        day.items.forEach(it => {
+            if (close) intensiveDone[it.key] = true; else delete intensiveDone[it.key];
+            upd[it.key] = close ? true : null;
+        });
+        db.ref(DB_PATH + '/intensive/done').update(upd).catch(err => { console.error(err); showToast('Не удалось сохранить: нет доступа к базе'); });
+        if (close) { intOpen.delete(n); showToast('День ' + n + ' закрыт 🎉'); }
+        render();
+    }
+    function toggleIntensiveOpen(n) {
+        if (intOpen.has(n)) intOpen.delete(n); else intOpen.add(n);
+        render();
+    }
+    function renderIntensiveTab(container) {
+        const todayISO = toISO(new Date());
+        if (!intOpenInit) {   // при первом показе раскрываем сегодняшний день (или первый незакрытый)
+            intOpenInit = true;
+            const cur = INTENSIVE_DAYS.find(d => toISO(d.date) === todayISO) || INTENSIVE_DAYS.find(d => !intDayDone(d));
+            if (cur) intOpen.add(cur.n);
+        }
+        let total = 0, done = 0, daysDone = 0;
+        INTENSIVE_DAYS.forEach(d => { total += d.items.length; done += intDayCount(d); if (intDayDone(d)) daysDone++; });
+        const pct = total ? Math.round(done * 100 / total) : 0;
+
+        let html = '<div class="day-title-row"><div style="text-align:center; flex:1;"><div class="day-title">🚀 Интенсив по математике</div>' +
+            '<span class="badge-count' + (daysDone === INTENSIVE_DAYS.length ? ' done' : '') + '">' + fmtDay(INTENSIVE_DAYS[0].date) + ' – ' + fmtDay(INTENSIVE_DAYS[INTENSIVE_DAYS.length - 1].date) + ' · ' + INTENSIVE_DAYS.length + ' дней</span></div></div>';
+        html += '<div class="int-total"><div class="int-total-top"><span>Закрыто дней: ' + daysDone + ' из ' + INTENSIVE_DAYS.length + '</span><span>' + pct + '%</span></div>' +
+            '<div class="int-bar"><div style="width:' + pct + '%"></div></div></div>';
+        if (daysDone === INTENSIVE_DAYS.length) html += '<div class="cheer">🎉 Интенсив пройден! Ты молодец 💖</div>';
+
+        INTENSIVE_DAYS.forEach(d => {
+            const allDone = intDayDone(d), cnt = intDayCount(d), isToday = toISO(d.date) === todayISO, open = intOpen.has(d.n);
+            html += '<div class="int-day' + (allDone ? ' done' : '') + (isToday ? ' today' : '') + (open ? ' open' : '') + '">' +
+                '<div class="int-head" onclick="toggleIntensiveOpen(' + d.n + ')">' +
+                '<div class="int-num">' + (allDone ? '✓' : d.n) + '</div>' +
+                '<div class="int-title">День ' + d.n + '<small>' + esc(DAY_NAMES[DAY_IDS[(d.date.getDay() + 6) % 7]] || 'Воскресенье') + ', ' + fmtDay(d.date) + (isToday ? ' · сегодня' : '') + '</small></div>' +
+                '<span class="sum-count' + (allDone ? ' ok' : '') + '">' + cnt + ' из ' + d.items.length + '</span>' +
+                '<span class="int-arrow">›</span></div>' +
+                '<div class="int-body">';
+            [INT_ALG, INT_GEO].forEach(subj => {
+                const rows = d.items.filter(it => it.subj === subj);
+                if (!rows.length) return;
+                html += '<div class="int-subj">' + subjHtml(subj) + '</div>';
+                rows.forEach(it => {
+                    const dn = !!intensiveDone[it.key];
+                    html += '<div class="subtask-item"><div class="task-main">' +
+                        '<div class="checkbox' + (dn ? ' checked' : '') + '" onclick="toggleIntensiveItem(\'' + it.key + '\')"></div>' +
+                        '<div class="subtask-text' + (dn ? ' completed' : '') + '" onclick="toggleIntensiveItem(\'' + it.key + '\')">' + esc(it.text) + '</div>' +
+                        '</div></div>';
+                });
+            });
+            html += '<button class="int-close' + (allDone ? ' undo' : '') + '" onclick="closeIntensiveDay(' + d.n + ')">' +
+                (allDone ? '↩ Снять отметки с дня' : '✓ Закрыть весь день') + '</button>' +
+                '</div></div>';
+        });
         container.innerHTML = html;
     }
 
