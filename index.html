@@ -1093,9 +1093,9 @@
         { wa: 'Степень с натуральным показателем, тождества', wg: 'Первый признак равенства: Дано, Доказать, Доказательство', alg: ['69'], geo: ['29', '30'] }
     ].map((d, i) => {
         const items = [], k = 'd' + (i + 1);
-        if (d.wa) items.push({ key: k + '_wa', subj: INT_ALG, text: '🔥 Разогрев: ' + d.wa });
+        if (d.wa) items.push({ key: k + '_wa', subj: INT_ALG, text: '🔥 Разогрев' });
         d.alg.forEach((t, j) => items.push({ key: k + '_a' + (j + 1), subj: INT_ALG, text: '№' + t }));
-        if (d.wg) items.push({ key: k + '_wg', subj: INT_GEO, text: '🔥 Разогрев: ' + d.wg });
+        if (d.wg) items.push({ key: k + '_wg', subj: INT_GEO, text: '🔥 Разогрев' });
         d.geo.forEach((t, j) => items.push({ key: k + '_g' + (j + 1), subj: INT_GEO, text: '№' + t }));
         return { n: i + 1, date: addDays(fromISO(INTENSIVE_START), i), items: items };
     });
