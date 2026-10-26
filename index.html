@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#c9508a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -33,7 +33,7 @@
         }
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }
         body { background-color: #1a1a2e; display: flex; justify-content: center; align-items: center; min-height: 100vh; min-height: 100dvh; padding: 0; margin: 0; }
-        .phone-frame { width: 100%; max-width: 430px; height: 100vh; height: 100dvh; max-height: 900px; background-color: var(--bg-color); border-radius: 0; box-shadow: 0 20px 40px rgba(0,0,0,0.4); display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .phone-frame { width: 100%; max-width: 430px; height: 100vh; height: 100dvh; height: var(--app-h, 100dvh); max-height: 900px; background-color: var(--bg-color); border-radius: 0; box-shadow: 0 20px 40px rgba(0,0,0,0.4); display: flex; flex-direction: column; overflow: hidden; position: relative; }
         @media(min-width: 500px) { .phone-frame { border-radius: 36px; height: 840px; } }
 
         .phone-header { background-color: var(--card-bg); padding: 14px 16px 10px 16px; border-bottom: 1px solid var(--border-color); }
@@ -124,7 +124,7 @@
         .int-subj { font-size: 12px; font-weight: 800; color: var(--primary-color); margin: 8px 0 2px; }
         .int-close { width: 100%; margin-top: 10px; border: none; border-radius: 14px; padding: 11px; font-size: 13px; font-weight: 800; cursor: pointer; background: var(--primary-color); color: #fff; }
         .int-close.undo { background: var(--primary-soft); color: var(--primary-color); }
-        .bottom-nav { background: var(--card-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; padding: 8px 0; }
+        .bottom-nav { background: var(--card-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; padding: 8px 0; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); flex-shrink: 0; }
         .nav-item { display: flex; flex-direction: column; align-items: center; font-size: 10px; color: var(--text-sub); cursor: pointer; border: none; background: transparent; flex: 1; }
         .nav-item.active { color: var(--primary-color); font-weight: 700; }
         .nav-icon { font-size: 18px; margin-bottom: 2px; }
@@ -424,6 +424,17 @@
     </div>
 </div>
 
+<script>
+    // Высота приложения = реально видимая область (системные кнопки Android не перекрывают меню)
+    function fitHeight() {
+        const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+        if (h) document.documentElement.style.setProperty('--app-h', Math.round(h) + 'px');
+    }
+    fitHeight();
+    window.addEventListener('resize', fitHeight);
+    window.addEventListener('orientationchange', fitHeight);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', fitHeight);
+</script>
 <script>
     // ================== Firebase ==================
     const firebaseConfig = { databaseURL: "https://domashka-f8f12-default-rtdb.firebaseio.com" };
